@@ -91,8 +91,6 @@ PSO2 게임 에셋, 추출된 모델, 텍스처 및 캐릭터 파일은 이 저�
 
 - [PSO2-Aqua-Library](https://github.com/Shadowth117/PSO2-Aqua-Library)는 PSO2 형식과
   ICE 데이터를 처리하는 데 필요한 소스 의존성입니다.
-- [Blender PSO2 Tools](https://github.com/gesori-pro/blender_pso2_tools)는 개발 및 결과
-  대조용 서브모듈이며 애플리케이션 실행 시에는 필요하지 않습니다.
 - 내장된 영어·일본어 아이템 이름 표는 PSO2NGS Mod Manager 아이템 데이터로부터
   생성되었습니다.
 

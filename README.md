@@ -93,9 +93,6 @@ computer and does not upload game data.
 
 - [PSO2-Aqua-Library](https://github.com/Shadowth117/PSO2-Aqua-Library) is the
   required source dependency for PSO2 formats and ICE data.
-- [Blender PSO2 Tools](https://github.com/gesori-pro/blender_pso2_tools) is
-  included as a development and reference submodule. It is not required at
-  application runtime.
 - The embedded English and Japanese item-name table is generated from
   PSO2NGS Mod Manager item data.
 

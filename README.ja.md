@@ -94,8 +94,6 @@ PSO2のゲームアセット、展開済みモデル、テクスチャー、キ�
 
 - [PSO2-Aqua-Library](https://github.com/Shadowth117/PSO2-Aqua-Library)は、
   PSO2形式とICEデータを扱うために必要なソース依存関係です。
-- [Blender PSO2 Tools](https://github.com/gesori-pro/blender_pso2_tools)は、
-  開発および結果確認用のサブモジュールです。アプリケーションの実行時には不要です。
 - 内蔵されている英語・日本語のアイテム名テーブルは、PSO2NGS Mod Managerの
   アイテムデータから生成されています。
 
