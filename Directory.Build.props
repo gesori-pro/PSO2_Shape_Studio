@@ -1,0 +1,41 @@
+<Project>
+  <PropertyGroup>
+    <AmlRoot>$(MSBuildThisFileDirectory)external\PSO2-Aqua-Library</AmlRoot>
+    <IsAmlSubmoduleProject Condition="$([System.String]::Copy('$(MSBuildProjectFullPath)').Contains('\external\PSO2-Aqua-Library\'))">true</IsAmlSubmoduleProject>
+    <!-- The app remains x64. AML Data and its managed dependencies retain
+         their upstream Any CPU configurations. -->
+    <Platforms Condition="'$(IsAmlSubmoduleProject)' != 'true'">x64</Platforms>
+    <PlatformTarget Condition="'$(IsAmlSubmoduleProject)' != 'true'">x64</PlatformTarget>
+    <!-- Character remains AML-free. The other projects opt in to an actionable
+         guard for clones whose required submodule was not initialised. -->
+    <UsesAml Condition="'$(MSBuildProjectName)' == 'Pso2ShapeStudio.Formats' or
+                        '$(MSBuildProjectName)' == 'Pso2ShapeStudio.Rigging' or
+                        '$(MSBuildProjectName)' == 'Pso2ShapeStudio.GameData' or
+                        '$(MSBuildProjectName)' == 'Pso2ShapeStudio.App' or
+                        '$(MSBuildProjectName)' == 'Pso2ShapeStudio.Core.Tests' or
+                        '$(MSBuildProjectName)' == 'probe'">true</UsesAml>
+    <ShouldUnsetParentConfigurationAndPlatform Condition="'$(UsesAml)' == 'true'">false</ShouldUnsetParentConfigurationAndPlatform>
+    <DisableTransitiveProjectReferences Condition="'$(UsesAml)' == 'true'">true</DisableTransitiveProjectReferences>
+  </PropertyGroup>
+
+  <!-- Do not mix the pinned third-party source tree's existing diagnostics
+       into this repository's zero-warning gate. Security auditing remains on;
+       ImageSharp is patched separately in Directory.Build.targets. -->
+  <PropertyGroup Condition="'$(IsAmlSubmoduleProject)' == 'true'">
+    <!-- AML's nested project references are not listed individually in the
+         parent solution. Preserve the Release/Any CPU configuration selected
+         for the Data entry point instead of letting them fall back to Debug. -->
+    <ShouldUnsetParentConfigurationAndPlatform>false</ShouldUnsetParentConfigurationAndPlatform>
+    <NoWarn>$(NoWarn);1701;1702;CA1416;CA2013;CA2022;CS0108;CS0162;CS0168;CS0169;CS0219;CS0659;CS0661;CS8600;CS8601;CS8602;CS8603;CS8604;CS8607;CS8618;CS8625;CS8629;CS8765;CS8767;CS8769;CS8981;SYSLIB0044</NoWarn>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
+
+  <Target Name="ValidateAmlSubmodule"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(UsesAml)' == 'true' and
+                     (!Exists('$(AmlRoot)\AquaModelLibrary.Data\AquaModelLibrary.Data.csproj') or
+                      !Exists('$(AmlRoot)\NvTriStrip.Net\NvTriStripDotNet\NvTriStripDotNet.csproj') or
+                      !Exists('$(AmlRoot)\ZamboniLib\ZamboniLib\ZamboniLib.csproj'))">
+    <Error Text="The required PSO2-Aqua-Library submodule is not initialised. Run: git submodule update --init --recursive external/PSO2-Aqua-Library" />
+  </Target>
+</Project>

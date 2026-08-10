@@ -1,0 +1,43 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Pso2ShapeStudio.App.App"
+             RequestedThemeVariant="Default">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush">#F5F7FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="PanelSurfaceBrush">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="PanelBorderBrush">#CBD5E1</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarTextBrush">#172033</SolidColorBrush>
+                    <SolidColorBrush x:Key="SecondaryTextBrush">#475569</SolidColorBrush>
+                    <SolidColorBrush x:Key="MutedTextBrush">#64748B</SolidColorBrush>
+                    <SolidColorBrush x:Key="SectionTextBrush">#334155</SolidColorBrush>
+                    <SolidColorBrush x:Key="AxisTextBrush">#475569</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusBackgroundBrush">#F1F5F9</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusTextBrush">#334155</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatisticsTextBrush">#64748B</SolidColorBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush">#151923</SolidColorBrush>
+                    <SolidColorBrush x:Key="PanelSurfaceBrush">#0E1118</SolidColorBrush>
+                    <SolidColorBrush x:Key="PanelBorderBrush">#303747</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarTextBrush">#F2F5FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="SecondaryTextBrush">#9CA8BD</SolidColorBrush>
+                    <SolidColorBrush x:Key="MutedTextBrush">#8792A6</SolidColorBrush>
+                    <SolidColorBrush x:Key="SectionTextBrush">#C9D2E0</SolidColorBrush>
+                    <SolidColorBrush x:Key="AxisTextBrush">#AEB9CA</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusBackgroundBrush">#10141C</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatusTextBrush">#B9C2D0</SolidColorBrush>
+                    <SolidColorBrush x:Key="StatisticsTextBrush">#7F8CA3</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

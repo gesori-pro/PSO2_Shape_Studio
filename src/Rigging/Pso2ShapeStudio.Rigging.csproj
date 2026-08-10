@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Posing: skeleton pose composition, the shape slider table, and the
+       _sa.aqm shape-adjust file that stores slider values as a motion. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Character\Pso2ShapeStudio.Character.csproj" />
+    <ProjectReference Include="..\Formats\Pso2ShapeStudio.Formats.csproj" />
+    <ProjectReference Include="$(AmlRoot)\AquaModelLibrary.Data\AquaModelLibrary.Data.csproj"
+                      SetConfiguration="Configuration=$(Configuration)"
+                      SetPlatform="Platform=AnyCPU"
+                      GlobalPropertiesToRemove="Platform" />
+    <ProjectReference Include="$(AmlRoot)\AquaModelLibrary.Helpers\AquaModelLibrary.Helpers.csproj"
+                      SetConfiguration="Configuration=$(Configuration)"
+                      SetPlatform="Platform=AnyCPU"
+                      GlobalPropertiesToRemove="Platform" />
+  </ItemGroup>
+
+</Project>

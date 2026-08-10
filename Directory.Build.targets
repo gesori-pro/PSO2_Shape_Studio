@@ -1,0 +1,32 @@
+<Project>
+  <!-- AML currently pins ImageSharp 3.1.6. Keep the submodule untouched while
+       applying the compatible, vulnerability-fixed 3.1 patch to every AML
+       project built as part of this repository. -->
+  <PropertyGroup Condition="'$(IsAmlSubmoduleProject)' == 'true'">
+    <!-- Some AML projects replace NoWarn in their project body, after
+         Directory.Build.props. Append the third-party warning boundary here. -->
+    <NoWarn>$(NoWarn);1701;1702;CA1416;CA2013;CA2022;CS0108;CS0162;CS0168;CS0169;CS0219;CS0659;CS0661;CS8600;CS8601;CS8602;CS8603;CS8604;CS8607;CS8618;CS8625;CS8629;CS8765;CS8767;CS8769;CS8981;SYSLIB0044</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsAmlSubmoduleProject)' == 'true'">
+    <PackageReference Update="SixLabors.ImageSharp" Version="3.1.12" />
+  </ItemGroup>
+
+  <!-- The SDK exposes AML's transitive ProjectReference items to every
+       consumer. Normalise the whole closure before configuration assignment;
+       otherwise solution builds can evaluate nested AML projects as Debug or
+       x64 even when the direct Data reference is Release/AnyCPU. -->
+  <Target Name="NormalizeAmlProjectReferenceConfiguration"
+          AfterTargets="IncludeTransitiveProjectReferences"
+          BeforeTargets="AssignProjectConfiguration"
+          Condition="'$(UsesAml)' == 'true' or '$(IsAmlSubmoduleProject)' == 'true'">
+    <ItemGroup>
+      <ProjectReference Update="@(ProjectReference)"
+                        Condition="$([System.String]::Copy('%(ProjectReference.FullPath)').Contains('\external\PSO2-Aqua-Library\'))">
+        <SetConfiguration>Configuration=$(Configuration)</SetConfiguration>
+        <SetPlatform>Platform=AnyCPU</SetPlatform>
+        <GlobalPropertiesToRemove>Platform</GlobalPropertiesToRemove>
+      </ProjectReference>
+    </ItemGroup>
+  </Target>
+</Project>

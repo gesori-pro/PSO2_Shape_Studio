@@ -1,0 +1,6 @@
+[submodule "external/PSO2-Aqua-Library"]
+	path = external/PSO2-Aqua-Library
+	url = https://github.com/Shadowth117/PSO2-Aqua-Library.git
+[submodule "external/blender_pso2_tools"]
+	path = external/blender_pso2_tools
+	url = https://github.com/gesori-pro/blender_pso2_tools.git

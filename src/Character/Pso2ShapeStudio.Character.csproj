@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Character customization files: fnp/fhp parsing, Blowfish, slider-to-
+       bone math, and character colors. Pure managed code - the one module
+       with no AquaModelLibrary dependency, so it stays trivially testable. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Data\**\*.json" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The installed game as a database: hashed-path resolution under
+       pso2_bin/data, the CMX-backed wear catalog, and official item names. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.18" />
+    <!-- Microsoft.Data.Sqlite 9.0.18 still resolves the vulnerable 2.1.10
+         native bundle. Pin the compatible patched 2.x bundle explicitly. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
+    <EmbeddedResource Include="Data\**\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(AmlRoot)\AquaModelLibrary.Data\AquaModelLibrary.Data.csproj"
+                      SetConfiguration="Configuration=$(Configuration)"
+                      SetPlatform="Platform=AnyCPU"
+                      GlobalPropertiesToRemove="Platform" />
+    <ProjectReference Include="$(AmlRoot)\AquaModelLibrary.Helpers\AquaModelLibrary.Helpers.csproj"
+                      SetConfiguration="Configuration=$(Configuration)"
+                      SetPlatform="Platform=AnyCPU"
+                      GlobalPropertiesToRemove="Platform" />
+  </ItemGroup>
+
+</Project>

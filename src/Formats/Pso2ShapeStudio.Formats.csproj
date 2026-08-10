@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Game file containers and meshes: AQP/AQN/ICE readers, DDS decoding,
+       and the RenderMesh types the viewport consumes. Wraps AquaModelLibrary
+       - format traps and their reasons are documented at the call sites. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Character\Pso2ShapeStudio.Character.csproj" />
+    <ProjectReference Include="$(AmlRoot)\AquaModelLibrary.Data\AquaModelLibrary.Data.csproj"
+                      SetConfiguration="Configuration=$(Configuration)"
+                      SetPlatform="Platform=AnyCPU"
+                      GlobalPropertiesToRemove="Platform" />
+    <ProjectReference Include="$(AmlRoot)\AquaModelLibrary.Helpers\AquaModelLibrary.Helpers.csproj"
+                      SetConfiguration="Configuration=$(Configuration)"
+                      SetPlatform="Platform=AnyCPU"
+                      GlobalPropertiesToRemove="Platform" />
+    <ProjectReference Include="$(AmlRoot)\ZamboniLib\ZamboniLib\ZamboniLib.csproj"
+                      SetConfiguration="Configuration=$(Configuration)"
+                      SetPlatform="Platform=AnyCPU"
+                      GlobalPropertiesToRemove="Platform" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Pfim" Version="0.11.3" />
+    <!-- Pfim leaves BC7/DX10 textures compressed; BCnEncoder decodes what it
+         cannot. Keep the version aligned with AML's VrSharp project. -->
+    <PackageReference Include="BCnEncoder.Net" Version="2.1.0" />
+  </ItemGroup>
+
+</Project>
