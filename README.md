@@ -2,9 +2,10 @@
 
 **English** | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-PSO2 Shape Studio is a Windows desktop application for previewing PSO2 and
-PSO2:NGS character models, applying character proportions, and editing outfit
-shape adjustments without using Blender.
+PSO2 Shape Studio is a Windows desktop tool for users who fine-tune PSO2 and
+PSO2:NGS character body shapes with outfit shape-adjust AQM files (`_sa.aqm`).
+It provides a model preview and sliders for applying, editing, and saving those
+post-adjustments without using Blender.
 
 > **Current version:** 1.0.0. Core model loading, character shaping, texture
 > lookup, and shape-adjust workflows are implemented, while rendering and format
