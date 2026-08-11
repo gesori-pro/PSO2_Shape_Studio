@@ -86,6 +86,15 @@ Run the application from source:
 dotnet run --project src/App/Pso2ShapeStudio.App.csproj -c Release -p:Platform=x64
 ```
 
+Build the release package:
+
+```powershell
+./publish.ps1
+```
+
+The script takes the version from `src/App/Pso2ShapeStudio.App.csproj`, runs the
+tests, and writes a self-contained archive to `dist/`.
+
 ## Game data and privacy
 
 PSO2 game assets, extracted models, textures, and character files are not

@@ -83,6 +83,15 @@ dotnet test Pso2ShapeStudio.sln -c Release -p:Platform=x64
 dotnet run --project src/App/Pso2ShapeStudio.App.csproj -c Release -p:Platform=x64
 ```
 
+배포용 패키지를 빌드합니다.
+
+```powershell
+./publish.ps1
+```
+
+이 스크립트는 `src/App/Pso2ShapeStudio.App.csproj`에서 버전을 읽고 테스트를 실행한
+뒤, 자체 포함 압축 파일을 `dist/`에 만듭니다.
+
 ## 게임 데이터와 개인정보
 
 PSO2 게임 에셋, 추출된 모델, 텍스처 및 캐릭터 파일은 이 저장소에 포함되지

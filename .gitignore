@@ -13,3 +13,19 @@ TestResults/
 *.aqn
 *.ice
 *.dds
+
+# Release packages produced by publish.ps1.
+dist/
+
+# Local research workspace. These notes reference private reference files and
+# personal game installs, so they stay out of the published repository even
+# though they live in the working tree.
+/HANDOFF.md
+/SPEC.md
+/PORTING.md
+/PIPELINE.md
+/TEXTURES_SEARCH.md
+/IMPLEMENTATION_REPORT.md
+/artifacts/
+/probe/
+/tools/
