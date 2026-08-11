@@ -79,6 +79,37 @@ public sealed class ShapeAdjustFileTests
         Assert.DoesNotContain(1, built.Adjustments.Keys);
     }
 
+    [ExternalDataFact("PSO2_SHAPE_TEST_DATA")]
+    public void CustomPairUsesSkeletonNodeIdsAndRoundTripsAsOneSlider()
+    {
+        var skeleton = AqnSkeleton.Load(AqnPath);
+        var nodeIds = skeleton.Bones
+            .Where(bone => bone.Index < ShapeAdjustFile.NodeCount)
+            .ToDictionary(bone => bone.Name, bone => bone.Index, StringComparer.OrdinalIgnoreCase);
+        var groups = ShapeSliders.ConfigureGroups(
+            ShapeSliders.Groups.Select(group => group.Key),
+            [new CustomShapeGroupDefinition(
+                "custom_clavicle", "Custom Clavicle", "l_clavicle", "r_clavicle")],
+            nodeIds);
+        var profile = new ShapeProfile
+        {
+            ["custom_clavicle"] = new ShapeValue(
+                new Vector3(1.1f, 1.2f, 1.3f),
+                new Vector3(0.01f, 0.02f, 0.03f),
+                new Vector3(5f, 10f, 15f)),
+        };
+
+        var built = ShapeAdjustFile.Build(skeleton, profile, groups: groups);
+        var left = Assert.Contains(nodeIds["l_clavicle"], built.Adjustments);
+        var right = Assert.Contains(nodeIds["r_clavicle"], built.Adjustments);
+        Assert.Equal(profile["custom_clavicle"].Scale, left.Scale);
+        Assert.Equal(ShapeSliders.MirrorPosition(profile["custom_clavicle"].Position), right.Position);
+
+        var reloaded = ShapeAdjustFile.Load(built.Motion.GetBytesNIFL()).ToProfile(groups);
+        Assert.InRange(reloaded["custom_clavicle"].Scale.X, 1.09999f, 1.10001f);
+        Assert.InRange(reloaded["custom_clavicle"].Position.X, 0.00999f, 0.01001f);
+    }
+
     private static void AssertMotionsEqual(AquaMotion expected, AquaMotion actual, float tolerance)
     {
         Assert.Equal(expected.moHeader.variant, actual.moHeader.variant);

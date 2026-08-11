@@ -30,9 +30,11 @@ public sealed class ShapeSlidersTests
         Assert.False(bodyRoot.SupportsPosition);
         Assert.False(bodyRoot.SupportsRotation);
         Assert.False(bodyRoot.ShowsRotation);
-        Assert.Equal(0.8, bodyRoot.ScaleMinimum);
+        Assert.Equal(0.5, bodyRoot.ScaleMinimum);
         Assert.Equal(1.2, bodyRoot.ScaleMaximum);
+        Assert.Equal(0.001, bodyRoot.ScaleStep);
         var clavicle = ShapeSliders.Groups.Single(group => group.Key == "clav");
+        Assert.Equal(0.01, clavicle.ScaleStep);
         Assert.False(clavicle.SupportsRotation);
         Assert.True(clavicle.ShowsRotation);
     }
@@ -51,6 +53,36 @@ public sealed class ShapeSlidersTests
 
         Assert.False(source.ValueEquals(clone));
         Assert.Equal(1.25f, source["waist"].Scale.X);
+    }
+
+    [Fact]
+    public void ConfiguredGroupsCanHideBuiltInsAndResolveCustomPairsAndSingles()
+    {
+        var groups = ShapeSliders.ConfigureGroups(
+            ["breast", "waist"],
+            [
+                new CustomShapeGroupDefinition(
+                    "custom_pair", "Arm Pair", "l_arm", "r_arm"),
+                new CustomShapeGroupDefinition(
+                    "custom_single", "Head", "head", null),
+            ],
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["l_arm"] = 10,
+                ["r_arm"] = 20,
+                ["head"] = 30,
+            });
+
+        Assert.DoesNotContain(groups, group => group.Key == "breast");
+        Assert.DoesNotContain(groups, group => group.Key == "waist");
+        var pair = Assert.Single(groups, group => group.Key == "custom_pair");
+        Assert.Equal("l_arm", pair.LeftBone);
+        Assert.Equal("r_arm", pair.RightBone);
+        Assert.Equal(10, pair.NodeIds["l_arm"]);
+        Assert.Equal(20, pair.NodeIds["r_arm"]);
+        var single = Assert.Single(groups, group => group.Key == "custom_single");
+        Assert.Null(single.RightBone);
+        Assert.Equal(30, single.NodeIds["head"]);
     }
 
     [ExternalDataFact("PSO2_SHAPE_TEST_DATA")]

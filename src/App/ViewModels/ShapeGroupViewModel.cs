@@ -22,6 +22,7 @@ public sealed class ShapeGroupViewModel : INotifyPropertyChanged
 
     public ShapeGroupViewModel(ShapeGroupDefinition definition, AppLanguage language)
     {
+        Definition = definition;
         Key = definition.Key;
         _defaultLabel = definition.Label;
         _language = language;
@@ -33,11 +34,13 @@ public sealed class ShapeGroupViewModel : INotifyPropertyChanged
         SupportsScaleZ = definition.SupportsScaleZ;
         ScaleMinimum = definition.ScaleMinimum;
         ScaleMaximum = definition.ScaleMaximum;
+        ScaleStep = definition.ScaleStep;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler? ValueChanged;
 
+    public ShapeGroupDefinition Definition { get; }
     public string Key { get; }
     public string Label => AppLocalizer.ShapeName(_language, Key, _defaultLabel);
     public string ScaleLabel => AppLocalizer.Text(_language, AppText.Scale);
@@ -51,10 +54,14 @@ public sealed class ShapeGroupViewModel : INotifyPropertyChanged
     public bool SupportsScaleZ { get; }
     public double ScaleMinimum { get; }
     public double ScaleMaximum { get; }
+    public double ScaleStep { get; }
+    public string ScaleXText => ScaleX.ToString(ScaleStep < 0.01 ? "F3" : "F2");
+    public string ScaleYText => ScaleY.ToString(ScaleStep < 0.01 ? "F3" : "F2");
+    public string ScaleZText => ScaleZ.ToString(ScaleStep < 0.01 ? "F3" : "F2");
 
-    public double ScaleX { get => _scaleX; set => Set(ref _scaleX, value); }
-    public double ScaleY { get => _scaleY; set => Set(ref _scaleY, value); }
-    public double ScaleZ { get => _scaleZ; set => Set(ref _scaleZ, value); }
+    public double ScaleX { get => _scaleX; set => Set(ref _scaleX, value, nameof(ScaleXText)); }
+    public double ScaleY { get => _scaleY; set => Set(ref _scaleY, value, nameof(ScaleYText)); }
+    public double ScaleZ { get => _scaleZ; set => Set(ref _scaleZ, value, nameof(ScaleZText)); }
     public double PositionX { get => _positionX; set => Set(ref _positionX, value); }
     public double PositionY { get => _positionY; set => Set(ref _positionY, value); }
     public double PositionZ { get => _positionZ; set => Set(ref _positionZ, value); }
@@ -94,7 +101,11 @@ public sealed class ShapeGroupViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RotationLabel)));
     }
 
-    private void Set(ref double field, double value, [CallerMemberName] string? propertyName = null)
+    private void Set(
+        ref double field,
+        double value,
+        string? dependentPropertyName = null,
+        [CallerMemberName] string? propertyName = null)
     {
         if (field == value)
         {
@@ -103,6 +114,11 @@ public sealed class ShapeGroupViewModel : INotifyPropertyChanged
 
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        if (dependentPropertyName is not null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(dependentPropertyName));
+        }
+
         ValueChanged?.Invoke(this, EventArgs.Empty);
     }
 }

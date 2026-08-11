@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Globalization;
 
 namespace Pso2ShapeStudio.Character;
 
@@ -89,6 +90,43 @@ public sealed class CharacterColorPalette
             [Pso2ColorChannel.Hair1] = new Vector4(1f, 0.49f, 0.14f, 1f),
             [Pso2ColorChannel.Hair2] = new Vector4(1f, 0.82f, 0.67f, 1f),
         });
+
+    public static CharacterColorPalette CreateWithSkinColors(
+        string mainSkinHex,
+        string subSkinHex)
+    {
+        if (!TryParseSrgbHex(mainSkinHex, out var mainSkin))
+        {
+            throw new FormatException($"Invalid main skin color: {mainSkinHex}");
+        }
+        if (!TryParseSrgbHex(subSkinHex, out var subSkin))
+        {
+            throw new FormatException($"Invalid sub skin color: {subSkinHex}");
+        }
+
+        var colors = Default._colors.ToDictionary(pair => pair.Key, pair => pair.Value);
+        colors[Pso2ColorChannel.MainSkin] = mainSkin;
+        colors[Pso2ColorChannel.SubSkin] = subSkin;
+        return new CharacterColorPalette(colors);
+    }
+
+    public static bool TryParseSrgbHex(string? value, out Vector4 linearColor)
+    {
+        var normalized = value?.Trim().TrimStart('#');
+        if (normalized?.Length != 6 ||
+            !int.TryParse(normalized, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
+        {
+            linearColor = default;
+            return false;
+        }
+
+        linearColor = new Vector4(
+            SrgbToLinear(((rgb >> 16) & 0xFF) / 255f),
+            SrgbToLinear(((rgb >> 8) & 0xFF) / 255f),
+            SrgbToLinear((rgb & 0xFF) / 255f),
+            1f);
+        return true;
+    }
 
     public Vector4 this[Pso2ColorChannel channel] =>
         channel == Pso2ColorChannel.Unused

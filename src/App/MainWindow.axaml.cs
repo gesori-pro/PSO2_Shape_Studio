@@ -59,7 +59,14 @@ public partial class MainWindow : Window
     private int _selectedSkinType2Id = DefaultSkinType2Id;
     private RenderTextureSet? _skinTextureType1;
     private RenderTextureSet? _skinTextureType2;
-    private CharacterColorPalette _characterColors = CharacterColorPalette.Default;
+    private string _defaultMainSkin = AppSettingDefaults.MainSkinColor;
+    private string _defaultSubSkin = AppSettingDefaults.SubSkinColor;
+    private HashSet<string> _hiddenShapeGroups = new(StringComparer.OrdinalIgnoreCase);
+    private List<CustomBoneGroupSetting> _customShapeGroups = [];
+    private CharacterColorPalette _characterColors = CharacterColorPalette.CreateWithSkinColors(
+        AppSettingDefaults.MainSkinColor,
+        AppSettingDefaults.SubSkinColor);
+    private bool _characterColorsFromFile;
     private readonly Dictionary<string, RenderTextureSet> _skinTextureCache =
         new(StringComparer.OrdinalIgnoreCase);
     private ViewportStatistics? _lastStatistics;
@@ -70,12 +77,7 @@ public partial class MainWindow : Window
         SearchResults = [];
         SkinType1Options = [];
         SkinType2Options = [];
-        SliderGroups = new ObservableCollection<ShapeGroupViewModel>(
-            ShapeSliders.Groups.Select(group => new ShapeGroupViewModel(group, _language)));
-        foreach (var editor in SliderGroups)
-        {
-            editor.ValueChanged += SliderValueChanged;
-        }
+        SliderGroups = [];
 
         DataContext = this;
         InitializeComponent();
@@ -83,6 +85,8 @@ public partial class MainWindow : Window
         VersionText.Text = $"v{DisplayVersion}";
         _shapeEditTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
         _shapeEditTimer.Tick += (_, _) => CommitPendingShapeEdit();
+        RebuildSliderGroups();
+        Viewport.SetCharacterColors(_characterColors);
         AddHandler(
             InputElement.KeyDownEvent,
             WindowKeyDown,
@@ -114,6 +118,18 @@ public partial class MainWindow : Window
                 // A failed write only loses the preference for next launch.
             }
         };
+        MainSidebarSplitter.DragCompleted += async (_, _) =>
+        {
+            try
+            {
+                await SaveSettingsAsync();
+            }
+            catch (IOException)
+            {
+                // A failed write only loses the preference for next launch.
+            }
+        };
+        OptionsButton.Click += OpenOptions;
         SkinType1ComboBox.SelectionChanged += SkinType1Changed;
         SkinType2ComboBox.SelectionChanged += SkinType2Changed;
         Viewport.SetLanguage(_language);
@@ -372,6 +388,7 @@ public partial class MainWindow : Window
         ToolTip.SetTip(BackgroundComboBox, L(AppText.BackgroundTip));
         FloorGuideCheckBox.Content = L(AppText.FloorGuide);
         ToolTip.SetTip(FloorGuideCheckBox, L(AppText.FloorGuideTip));
+        OptionsButton.Content = L(AppText.Options);
 
         foreach (var item in BackgroundComboBox.Items.OfType<ComboBoxItem>())
         {
@@ -480,7 +497,12 @@ public partial class MainWindow : Window
             _selectedSkinType1Id,
             _selectedSkinType2Id,
             SelectedBackgroundTag(),
-            FloorGuideCheckBox.IsChecked != false);
+            FloorGuideCheckBox.IsChecked != false,
+            _defaultMainSkin,
+            _defaultSubSkin,
+            _hiddenShapeGroups.Order(StringComparer.OrdinalIgnoreCase).ToArray(),
+            _customShapeGroups.ToArray(),
+            CurrentSidebarWidth());
         await File.WriteAllTextAsync(SettingsPath, JsonSerializer.Serialize(settings));
     }
 
@@ -597,14 +619,6 @@ public partial class MainWindow : Window
         ShapeAdjustFile? ShapeAdjust,
         int ArchiveEntryCount,
         int ArchiveDdsCount);
-
-    private sealed record AppSettings(
-        string DataPath = "",
-        string Language = "en",
-        int SkinType1 = DefaultSkinType1Id,
-        int SkinType2 = DefaultSkinType2Id,
-        string Background = "0E1114",
-        bool? FloorGuide = null);
 
     private sealed record ShapeHistoryState(ShapeProfile Profile, ShapeAdjustFile? ShapeAdjust);
 }

@@ -48,13 +48,13 @@ public sealed class ShapeAdjustFile
         return new ShapeAdjustFile(motion.moHeader.variant, motion.moHeader.endFrame, adjustments, motion);
     }
 
-    public ShapeProfile ToProfile()
+    public ShapeProfile ToProfile(IReadOnlyList<ShapeGroupDefinition>? groups = null)
     {
         var byName = Adjustments.Values.ToDictionary(
             entry => entry.Name,
             StringComparer.OrdinalIgnoreCase);
         var profile = new ShapeProfile();
-        foreach (var group in ShapeSliders.Groups)
+        foreach (var group in groups ?? ShapeSliders.Groups)
         {
             if (!byName.TryGetValue(group.LeftBone, out var entry))
             {
@@ -73,10 +73,11 @@ public sealed class ShapeAdjustFile
     public static ShapeAdjustFile Build(
         AqnSkeleton skeleton,
         ShapeProfile profile,
-        IReadOnlyDictionary<int, ShapeAdjustment>? carried = null)
+        IReadOnlyDictionary<int, ShapeAdjustment>? carried = null,
+        IReadOnlyList<ShapeGroupDefinition>? groups = null)
     {
         var adjusted = carried?.ToDictionary(pair => pair.Key, pair => pair.Value) ?? [];
-        foreach (var group in ShapeSliders.Groups)
+        foreach (var group in groups ?? ShapeSliders.Groups)
         {
             foreach (var nodeId in group.NodeIds.Values)
             {

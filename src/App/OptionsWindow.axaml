@@ -1,0 +1,130 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Pso2ShapeStudio.App"
+        x:Class="Pso2ShapeStudio.App.OptionsWindow"
+        x:DataType="local:OptionsWindow"
+        Width="820" Height="720" MinWidth="700" MinHeight="580"
+        WindowStartupLocation="CenterOwner"
+        Title="PSO2 Shape Studio Options">
+  <Grid RowDefinitions="*,Auto" Margin="16" RowSpacing="12">
+    <TabControl>
+      <TabItem x:Name="GeneralTab" Header="General">
+        <ScrollViewer>
+          <StackPanel Margin="12" Spacing="14">
+            <TextBlock x:Name="DataFolderLabel" Text="Game data folder"
+                       FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBox x:Name="DataFolderBox" />
+              <Button Grid.Column="1" x:Name="BrowseButton" Content="Browse…" />
+            </Grid>
+
+            <Separator Margin="0,4" />
+            <TextBlock x:Name="DefaultSkinColorsLabel" Text="Default skin colors"
+                       FontWeight="SemiBold" />
+            <TextBlock x:Name="HexHelpText" TextWrapping="Wrap"
+                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" />
+            <Grid ColumnDefinitions="130,120,40" RowDefinitions="Auto,Auto"
+                  ColumnSpacing="8" RowSpacing="8">
+              <TextBlock x:Name="MainSkinColorLabel" Text="Main skin"
+                         VerticalAlignment="Center" />
+              <TextBox Grid.Column="1" x:Name="MainSkinColorBox" MaxLength="7" />
+              <Border Grid.Column="2" x:Name="MainSkinPreview" CornerRadius="4"
+                      BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" />
+
+              <TextBlock Grid.Row="1" x:Name="SubSkinColorLabel" Text="Sub skin"
+                         VerticalAlignment="Center" />
+              <TextBox Grid.Row="1" Grid.Column="1" x:Name="SubSkinColorBox" MaxLength="7" />
+              <Border Grid.Row="1" Grid.Column="2" x:Name="SubSkinPreview" CornerRadius="4"
+                      BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" />
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem x:Name="BonesTab" Header="Editable Bones">
+        <Grid Margin="12" RowDefinitions="Auto,2*,6,3*" RowSpacing="8">
+          <TextBlock x:Name="BoneHelpText" TextWrapping="Wrap"
+                     Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" />
+          <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="6" MinHeight="110">
+            <TextBlock x:Name="BuiltInGroupsLabel" Text="Built-in groups"
+                       FontWeight="SemiBold" />
+            <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="1" CornerRadius="5" Padding="6">
+              <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding BuiltInGroups}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:BuiltInBoneGroupOption">
+                      <Grid ColumnDefinitions="220,*" Margin="2,3" ColumnSpacing="8">
+                        <CheckBox Content="{Binding Label}" IsChecked="{Binding Enabled}" />
+                        <TextBlock Grid.Column="1" Text="{Binding Bones}"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+
+          <GridSplitter Grid.Row="2" ResizeDirection="Rows"
+                        ResizeBehavior="PreviousAndNext"
+                        Background="{DynamicResource PanelBorderBrush}"
+                        Cursor="SizeNorthSouth" />
+
+          <Grid Grid.Row="3" RowDefinitions="Auto,Auto,*" RowSpacing="6" MinHeight="130">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+              <StackPanel>
+                <TextBlock x:Name="CustomGroupsLabel" Text="Custom groups"
+                           FontWeight="SemiBold" />
+                <TextBlock x:Name="SkeletonStatusText" FontSize="10"
+                           Foreground="{DynamicResource SecondaryTextBrush}" />
+              </StackPanel>
+              <Button Grid.Column="1" x:Name="AddPairButton" Content="Add L/R pair" />
+              <Button Grid.Column="2" x:Name="AddSingleButton" Content="Add single bone" />
+            </Grid>
+
+            <Grid Grid.Row="1" ColumnDefinitions="90,160,*,70" ColumnSpacing="6">
+              <TextBlock x:Name="KindHeader" />
+              <TextBlock Grid.Column="1" x:Name="GroupNameHeader" />
+              <TextBlock Grid.Column="2" x:Name="BoneSelectionHeader" />
+            </Grid>
+
+            <Border Grid.Row="2" BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="1" CornerRadius="5" Padding="6">
+              <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding CustomGroups}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:CustomBoneGroupOption">
+                      <Grid ColumnDefinitions="90,160,*,70" ColumnSpacing="6" Margin="2,3">
+                        <TextBlock Text="{Binding KindLabel}" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="1" Text="{Binding Label, Mode=TwoWay}" />
+                        <ComboBox Grid.Column="2"
+                                  ItemsSource="{Binding BoneOptions}"
+                                  SelectedItem="{Binding SelectedBone, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="local:BoneSelectionOption">
+                              <TextBlock Text="{Binding DisplayName}" />
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Grid.Column="3" Content="×" Click="RemoveCustomBone" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+        </Grid>
+      </TabItem>
+    </TabControl>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <TextBlock x:Name="ErrorText" Foreground="#E05D5D" TextWrapping="Wrap"
+                 VerticalAlignment="Center" />
+      <Button Grid.Column="1" x:Name="CancelButton" Content="Cancel" MinWidth="90" />
+      <Button Grid.Column="2" x:Name="SaveButton" Content="Save" MinWidth="90" />
+    </Grid>
+  </Grid>
+</Window>

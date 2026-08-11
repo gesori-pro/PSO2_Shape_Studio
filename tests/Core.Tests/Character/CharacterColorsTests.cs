@@ -18,6 +18,16 @@ public sealed class CharacterColorsTests
         AssertColor(palette[Pso2ColorChannel.SubSkin], 0.309469f, 0.001518f, 0f);
     }
 
+    [Fact]
+    public void CustomDefaultSkinColorsAcceptHexAndConvertFromSrgb()
+    {
+        var palette = CharacterColorPalette.CreateWithSkinColors("#FF0000", "808080");
+
+        AssertColor(palette[Pso2ColorChannel.MainSkin], 1f, 0f, 0f);
+        AssertColor(palette[Pso2ColorChannel.SubSkin], 0.215861f, 0.215861f, 0.215861f);
+        Assert.False(CharacterColorPalette.TryParseSrgbHex("not-a-color", out _));
+    }
+
     private static void AssertColor(
         System.Numerics.Vector4 actual,
         float red,

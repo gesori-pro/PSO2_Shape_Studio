@@ -22,6 +22,8 @@ public sealed class AqnSkeletonTests
         Assert.InRange(skeleton.Bones[2].WorldBind.M42, 0.8975f, 0.8985f);
         Assert.Equal("l_breast", skeleton.Bones[41].Name);
         Assert.InRange(skeleton.Bones[41].WorldBind.M41, 0.0699f, 0.0701f);
+        Assert.Equal("l_hand_tw", skeleton.Bones[93].Name);
+        Assert.Equal("r_hand_tw", skeleton.Bones[118].Name);
     }
 
     [ExternalDataFact("PSO2_SHAPE_TEST_DATA")]

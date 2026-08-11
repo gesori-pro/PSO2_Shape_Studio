@@ -135,6 +135,7 @@ public partial class MainWindow : Window
             if (result.Skeleton is not null)
             {
                 _skeleton = result.Skeleton;
+                RebuildSliderGroups();
             }
 
             if (result.Proportions is not null)
@@ -145,6 +146,7 @@ public partial class MainWindow : Window
             if (result.Colors is not null)
             {
                 _characterColors = result.Colors;
+                _characterColorsFromFile = true;
                 Viewport.SetCharacterColors(_characterColors);
             }
 
@@ -153,7 +155,7 @@ public partial class MainWindow : Window
                 CommitPendingShapeEdit();
                 var before = CaptureShapeState();
                 _shapeAdjust = result.ShapeAdjust;
-                _profile = result.ShapeAdjust.ToProfile();
+                _profile = result.ShapeAdjust.ToProfile(ActiveShapeGroups());
                 RecordShapeEdit(before);
                 SetEditorsFromProfile();
             }

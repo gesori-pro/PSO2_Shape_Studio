@@ -517,6 +517,23 @@ public partial class MainWindow : Window
             _selectedSkinType2Id = settings?.SkinType2 ?? DefaultSkinType2Id;
             RestoreBackground(settings?.Background);
             RestoreFloorGuide(settings?.FloorGuide);
+            RestoreSidebarWidth(settings?.SidebarWidth);
+            _defaultMainSkin = ValidSkinHexOrDefault(
+                settings?.DefaultMainSkin,
+                AppSettingDefaults.MainSkinColor);
+            _defaultSubSkin = ValidSkinHexOrDefault(
+                settings?.DefaultSubSkin,
+                AppSettingDefaults.SubSkinColor);
+            _hiddenShapeGroups = (settings?.HiddenShapeGroups ?? [])
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _customShapeGroups = (settings?.CustomShapeGroups ?? [])
+                .Where(group =>
+                    !string.IsNullOrWhiteSpace(group.Id) &&
+                    !string.IsNullOrWhiteSpace(group.Label) &&
+                    !string.IsNullOrWhiteSpace(group.LeftBone))
+                .ToList();
+            ApplyDefaultSkinColors();
+            RebuildSliderGroups();
             if (!string.IsNullOrWhiteSpace(settings?.DataPath))
             {
                 await ConfigureDataFolderAsync(settings.DataPath, rebuild: false);

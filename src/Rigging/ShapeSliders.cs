@@ -16,7 +16,14 @@ public sealed record ShapeGroupDefinition(
     bool SupportsScaleY = true,
     bool SupportsScaleZ = true,
     double ScaleMinimum = 0.1,
-    double ScaleMaximum = 4.0);
+    double ScaleMaximum = 4.0,
+    double ScaleStep = 0.01);
+
+public sealed record CustomShapeGroupDefinition(
+    string Key,
+    string Label,
+    string LeftBone,
+    string? RightBone);
 
 public readonly record struct ShapeValue(Vector3 Scale, Vector3 Position, Vector3 EulerDegrees)
 {
@@ -79,8 +86,9 @@ public static class ShapeSliders
             SupportsScaleX: false,
             SupportsScaleY: true,
             SupportsScaleZ: false,
-            ScaleMinimum: 0.8,
-            ScaleMaximum: 1.2),
+            ScaleMinimum: 0.5,
+            ScaleMaximum: 1.2,
+            ScaleStep: 0.001),
         Group("breast", "Breast", "l_breast", "r_breast", ("l_breast", 41), ("r_breast", 43)),
         Group("breast2", "Breast Scale", "l_breast_scale", "r_breast_scale", ("l_breast_scale", 124), ("r_breast_scale", 125)),
         Group("cbreast2", "Center Breast Scale", "c_breast_scale", null, ("c_breast_scale", 130)),
@@ -97,10 +105,59 @@ public static class ShapeSliders
         Group("foot", "Foot", "l_foot_alt", "r_foot_alt", ("l_foot_alt", 57), ("r_foot_alt", 68)),
     ];
 
-    public static SkeletonPose Apply(AqnSkeleton skeleton, ShapeProfile profile)
+    public static IReadOnlyList<ShapeGroupDefinition> ConfigureGroups(
+        IEnumerable<string>? hiddenBuiltInKeys,
+        IEnumerable<CustomShapeGroupDefinition>? customGroups,
+        IReadOnlyDictionary<string, int>? skeletonNodeIds = null)
+    {
+        var hidden = hiddenBuiltInKeys?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+        var configured = Groups.Where(group => !hidden.Contains(group.Key)).ToList();
+        var usedKeys = configured.Select(group => group.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var custom in customGroups ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(custom.Key) ||
+                string.IsNullOrWhiteSpace(custom.Label) ||
+                string.IsNullOrWhiteSpace(custom.LeftBone) ||
+                !usedKeys.Add(custom.Key))
+            {
+                continue;
+            }
+
+            var left = custom.LeftBone.Trim();
+            var right = string.IsNullOrWhiteSpace(custom.RightBone) ? null : custom.RightBone.Trim();
+            var nodeIds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            AddNode(left);
+            if (right is not null)
+            {
+                AddNode(right);
+            }
+
+            configured.Add(new ShapeGroupDefinition(
+                custom.Key,
+                custom.Label.Trim(),
+                left,
+                right,
+                nodeIds));
+
+            void AddNode(string name)
+            {
+                if (skeletonNodeIds?.TryGetValue(name, out var nodeId) == true)
+                {
+                    nodeIds[name] = nodeId;
+                }
+            }
+        }
+
+        return configured;
+    }
+
+    public static SkeletonPose Apply(
+        AqnSkeleton skeleton,
+        ShapeProfile profile,
+        IReadOnlyList<ShapeGroupDefinition>? groups = null)
     {
         var composer = new BodyPoseComposer(skeleton);
-        foreach (var group in Groups)
+        foreach (var group in groups ?? Groups)
         {
             var value = profile[group.Key];
             if (value.IsIdentity)

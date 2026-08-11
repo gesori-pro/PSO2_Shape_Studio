@@ -74,7 +74,11 @@ public partial class MainWindow : Window
 
         try
         {
-            var output = ShapeAdjustFile.Build(_skeleton, _profile, _shapeAdjust?.Adjustments);
+            var output = ShapeAdjustFile.Build(
+                _skeleton,
+                _profile,
+                _shapeAdjust?.Adjustments,
+                ActiveShapeGroups());
             await Task.Run(() => output.Save(file.Path.LocalPath));
             StatusText.Text = L(
                 AppText.AqmSaved, Path.GetFileName(file.Path.LocalPath), output.Adjustments.Count);
@@ -206,7 +210,11 @@ public partial class MainWindow : Window
 
     private void SetUniformDiagnosticScale(string key, float value)
     {
-        var editor = SliderGroups.First(group => group.Key == key);
+        var editor = SliderGroups.FirstOrDefault(group => group.Key == key);
+        if (editor is null)
+        {
+            return;
+        }
         editor.SetValue(new ShapeValue(new Vector3(value), Vector3.Zero, Vector3.Zero));
         _profile[key] = editor.ToValue();
         RebuildPose();
@@ -232,7 +240,8 @@ public partial class MainWindow : Window
             }
         }
 
-        var sliderBones = ShapeSliders.Groups
+        var activeGroups = ActiveShapeGroups();
+        var sliderBones = activeGroups
             .SelectMany(group => group.RightBone is null
                 ? new[] { group.LeftBone }
                 : new[] { group.LeftBone, group.RightBone })
@@ -248,7 +257,7 @@ public partial class MainWindow : Window
             }
         }
 
-        foreach (var group in ShapeSliders.Groups)
+        foreach (var group in activeGroups)
         {
             var value = _profile[group.Key];
             if (value.IsIdentity)

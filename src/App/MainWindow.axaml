@@ -10,11 +10,15 @@
         Width="1440" Height="900" MinWidth="1100" MinHeight="700"
         Title="PSO2 Shape Studio"
         Foreground="{DynamicResource SidebarTextBrush}">
-  <Grid RowDefinitions="*,Auto" ColumnDefinitions="420,*">
+  <Grid x:Name="RootLayout" RowDefinitions="*,Auto">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="420" MinWidth="320" MaxWidth="760" />
+      <ColumnDefinition Width="6" />
+      <ColumnDefinition Width="*" MinWidth="360" />
+    </Grid.ColumnDefinitions>
     <Border Grid.Row="0" Grid.Column="0"
             Background="{DynamicResource SidebarBackgroundBrush}"
-            BorderBrush="{DynamicResource PanelBorderBrush}"
-            BorderThickness="0,0,1,0" Padding="16">
+            Padding="16">
       <Grid RowDefinitions="Auto,Auto,90,Auto,Auto,*,Auto,Auto">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
           <StackPanel Spacing="4">
@@ -47,6 +51,7 @@
             </ComboBox>
             <CheckBox x:Name="FloorGuideCheckBox" Content="Floor guide" IsChecked="True"
                       ToolTip.Tip="Show the world Y=0 floor guide" />
+            <Button x:Name="OptionsButton" Content="Options…" />
           </StackPanel>
         </Grid>
 
@@ -165,28 +170,28 @@
                             ColumnSpacing="6" RowSpacing="2">
                         <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
                                    IsVisible="{Binding SupportsScaleX}" />
-                        <Slider Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="0.01"
-                                IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
+                        <Slider Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="{Binding ScaleStep}"
+                                IsSnapToTickEnabled="True" SmallChange="{Binding ScaleStep}" LargeChange="0.1"
                                 Value="{Binding ScaleX, Mode=TwoWay}" IsVisible="{Binding SupportsScaleX}" />
-                        <TextBlock Grid.Column="2" Text="{Binding ScaleX, StringFormat='{}{0:F2}'}"
+                        <TextBlock Grid.Column="2" Text="{Binding ScaleXText}"
                                    HorizontalAlignment="Right" VerticalAlignment="Center"
                                    IsVisible="{Binding SupportsScaleX}" />
 
                         <TextBlock Grid.Row="1" Text="Y" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
                                    IsVisible="{Binding SupportsScaleY}" />
-                        <Slider Grid.Row="1" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="0.01"
-                                IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
+                        <Slider Grid.Row="1" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="{Binding ScaleStep}"
+                                IsSnapToTickEnabled="True" SmallChange="{Binding ScaleStep}" LargeChange="0.1"
                                 Value="{Binding ScaleY, Mode=TwoWay}" IsVisible="{Binding SupportsScaleY}" />
-                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ScaleY, StringFormat='{}{0:F2}'}"
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ScaleYText}"
                                    HorizontalAlignment="Right" VerticalAlignment="Center"
                                    IsVisible="{Binding SupportsScaleY}" />
 
                         <TextBlock Grid.Row="2" Text="Z" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
                                    IsVisible="{Binding SupportsScaleZ}" />
-                        <Slider Grid.Row="2" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="0.01"
-                                IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
+                        <Slider Grid.Row="2" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="{Binding ScaleStep}"
+                                IsSnapToTickEnabled="True" SmallChange="{Binding ScaleStep}" LargeChange="0.1"
                                 Value="{Binding ScaleZ, Mode=TwoWay}" IsVisible="{Binding SupportsScaleZ}" />
-                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding ScaleZ, StringFormat='{}{0:F2}'}"
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding ScaleZText}"
                                    HorizontalAlignment="Right" VerticalAlignment="Center"
                                    IsVisible="{Binding SupportsScaleZ}" />
                       </Grid>
@@ -269,12 +274,17 @@
       </Grid>
     </Border>
 
-    <Grid Grid.Row="0" Grid.Column="1" Background="#0E1118">
+    <GridSplitter x:Name="MainSidebarSplitter" Grid.Row="0" Grid.Column="1"
+                  ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+                  Background="{DynamicResource PanelBorderBrush}"
+                  Cursor="SizeWestEast" />
+
+    <Grid Grid.Row="0" Grid.Column="2" Background="#0E1118">
       <rendering:ModelViewport x:Name="Viewport" Focusable="False" IsHitTestVisible="False" />
       <Border x:Name="ViewportInputSurface" Background="Transparent" Focusable="True" />
     </Grid>
 
-    <Border Grid.Row="1" Grid.ColumnSpan="2"
+    <Border Grid.Row="1" Grid.ColumnSpan="3"
             Background="{DynamicResource StatusBackgroundBrush}"
             BorderBrush="{DynamicResource PanelBorderBrush}"
             BorderThickness="0,1,0,0" Padding="12,7">
