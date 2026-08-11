@@ -4,3 +4,12 @@
 *.user
 *.suo
 TestResults/
+
+# Player data and game assets must never enter this public repository.
+*.fnp
+*.fhp
+*.aqm
+*.aqp
+*.aqn
+*.ice
+*.dds

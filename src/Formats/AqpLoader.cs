@@ -94,7 +94,8 @@ public static class AqpLoader
                     diffuseReference?.UvSet ?? 0,
                     maskReference?.UvSet ?? 0,
                     normalReference?.UvSet ?? 0,
-                    multiReference?.UvSet ?? 0));
+                    multiReference?.UvSet ?? 0),
+                ResolveBlendMode(material.blendType));
         }).ToArray();
 
         if (model.vtxlList.Count != model.meshList.Count ||
@@ -209,6 +210,21 @@ public static class AqpLoader
             _ => Pso2BodyType.Unknown,
         };
     }
+
+    /// <summary>
+    /// Preserve PSO2's four distinct render paths. In particular, hollow is
+    /// alpha-tested rather than blended, and opaque materials must not consume
+    /// diffuse alpha. Treating all of them as SrcAlpha blending makes tiny
+    /// compressed-alpha values leak the surface underneath as bright specks.
+    /// </summary>
+    private static MaterialBlendMode ResolveBlendMode(string? blendType) =>
+        blendType?.ToLowerInvariant() switch
+        {
+            "hollow" => MaterialBlendMode.Cutout,
+            "blendalpha" => MaterialBlendMode.AlphaBlend,
+            "add" => MaterialBlendMode.Additive,
+            _ => MaterialBlendMode.Opaque,
+        };
 
     private static bool IsSkinMaterial(
         IEnumerable<string>? shaderNames,

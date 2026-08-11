@@ -287,7 +287,17 @@ public partial class MainWindow : Window
             return;
         }
 
-        await LoadPathsAsync([selected.ResolvedPath]);
+        // Setwear/basewear often carries hidden partner pieces (a linked
+        // outerwear holding the physics-driven skirt or cape, a linked
+        // innerwear underneath). Loading the outfit without them shows a
+        // visibly broken garment, so resolve and load them together.
+        var paths = new List<string> { selected.ResolvedPath };
+        foreach (var linked in ResolveLinkedWear(selected.Record))
+        {
+            paths.Add(linked);
+        }
+
+        await LoadPathsAsync(paths);
 
         // A searched outfit should come up wearing skin, not gray flesh. If
         // neither skin set made it to the viewport (first run, or an earlier
@@ -296,6 +306,45 @@ public partial class MainWindow : Window
         {
             await PopulateSkinOptionsAsync();
         }
+    }
+
+    /// <summary>
+    /// Resolved file paths of an outfit's linked inner/outerwear, in the
+    /// order they should stack under the outfit. Missing links, records the
+    /// CMX no longer has, and unresolvable files are all skipped silently -
+    /// the main outfit still loads on its own.
+    /// </summary>
+    private IReadOnlyList<string> ResolveLinkedWear(ModelCatalogRecord record)
+    {
+        if (_catalog is null || _dataLocator is null)
+        {
+            return [];
+        }
+
+        var paths = new List<string>(2);
+        void Add(string objectType, int? id)
+        {
+            if (id is not int value)
+            {
+                return;
+            }
+
+            var linked = _catalog.FindByTypeAndId(objectType, value);
+            if (linked is null)
+            {
+                return;
+            }
+
+            var resolved = _dataLocator.Resolve(linked.FileName);
+            if (resolved is not null)
+            {
+                paths.Add(resolved.Path);
+            }
+        }
+
+        Add("innerwear", record.LinkedInnerId);
+        Add("outerwear", record.LinkedOuterId);
+        return paths;
     }
 
     private async Task ConfigureDataFolderAsync(string selectedPath, bool rebuild)
@@ -452,6 +501,7 @@ public partial class MainWindow : Window
             SetLanguage(AppLocalizer.ParseLanguage(settings?.Language));
             _selectedSkinType1Id = settings?.SkinType1 ?? DefaultSkinType1Id;
             _selectedSkinType2Id = settings?.SkinType2 ?? DefaultSkinType2Id;
+            RestoreBackground(settings?.Background);
             if (!string.IsNullOrWhiteSpace(settings?.DataPath))
             {
                 await ConfigureDataFolderAsync(settings.DataPath, rebuild: false);

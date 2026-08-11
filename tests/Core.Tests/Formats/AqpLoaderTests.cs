@@ -27,6 +27,16 @@ public sealed class AqpLoaderTests
         Assert.Equal(86, model.Meshes[0].PaletteIndices[0].X);
         Assert.Equal(Pso2BodyType.Type2, model.BodyType);
         Assert.Equal(3, model.Materials.Count(material => material.UsesSkinTexture));
+        Assert.Equal(
+            [
+                MaterialBlendMode.Opaque,
+                MaterialBlendMode.Cutout,
+                MaterialBlendMode.Opaque,
+                MaterialBlendMode.Opaque,
+                MaterialBlendMode.Cutout,
+                MaterialBlendMode.Opaque,
+            ],
+            model.Materials.Select(material => material.BlendMode));
         Assert.All(model.Meshes, mesh =>
         {
             Assert.Equal(mesh.VertexCount, mesh.Uv.Length);

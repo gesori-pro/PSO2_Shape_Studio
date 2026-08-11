@@ -30,6 +30,8 @@ public partial class MainWindow : Window
         "Pso2ShapeStudio");
     private static readonly string CatalogPath = Path.Combine(AppDataDirectory, "objects.db");
     private static readonly string SettingsPath = Path.Combine(AppDataDirectory, "settings.json");
+    private static readonly string DisplayVersion = FormatDisplayVersion(
+        typeof(MainWindow).Assembly.GetName().Version);
     private IBrush DataInfoBrush => Brush.Parse(
         ActualThemeVariant == ThemeVariant.Light ? "#475569" : "#8792A6");
     private IBrush DataSuccessBrush => Brush.Parse(
@@ -77,6 +79,8 @@ public partial class MainWindow : Window
 
         DataContext = this;
         InitializeComponent();
+        Title = $"PSO2 Shape Studio {DisplayVersion}";
+        VersionText.Text = $"v{DisplayVersion}";
         _shapeEditTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
         _shapeEditTimer.Tick += (_, _) => CommitPendingShapeEdit();
         AddHandler(
@@ -86,6 +90,18 @@ public partial class MainWindow : Window
             handledEventsToo: true);
         ApplyLanguage(initializeDataState: true);
         LanguageComboBox.SelectionChanged += LanguageChanged;
+        BackgroundComboBox.SelectionChanged += async (_, _) =>
+        {
+            ApplyBackgroundSelection();
+            try
+            {
+                await SaveSettingsAsync();
+            }
+            catch (IOException)
+            {
+                // A failed write only loses the preference for next launch.
+            }
+        };
         SkinType1ComboBox.SelectionChanged += SkinType1Changed;
         SkinType2ComboBox.SelectionChanged += SkinType2Changed;
         Viewport.SetLanguage(_language);
@@ -218,6 +234,9 @@ public partial class MainWindow : Window
         Opened += LoadCommandLineFiles;
     }
 
+    private static string FormatDisplayVersion(Version? version) =>
+        version is null ? "development" : $"{version.Major}.{version.Minor}.{version.Build}";
+
     public ObservableCollection<ModelEntry> Models { get; }
 
     public ObservableCollection<ModelSearchResultViewModel> SearchResults { get; }
@@ -338,6 +357,15 @@ public partial class MainWindow : Window
         SaveAqmButton.Content = L(AppText.SaveAqm);
         CameraHelpText.Text = L(AppText.CameraHelp);
         ToolTip.SetTip(LanguageComboBox, L(AppText.LanguageTip));
+        ToolTip.SetTip(BackgroundComboBox, L(AppText.BackgroundTip));
+
+        foreach (var item in BackgroundComboBox.Items.OfType<ComboBoxItem>())
+        {
+            if (item.Tag is string tag && BackgroundNames.TryGetValue(tag, out var name))
+            {
+                item.Content = L(name);
+            }
+        }
 
         foreach (var group in SliderGroups)
         {
@@ -378,6 +406,48 @@ public partial class MainWindow : Window
         }
     }
 
+    // Keys are the hex tags declared on the MainWindow.axaml combo box items.
+    private static readonly IReadOnlyDictionary<string, AppText> BackgroundNames =
+        new Dictionary<string, AppText>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["0E1114"] = AppText.BackgroundDark,
+            ["2A2E36"] = AppText.BackgroundGraphite,
+            ["6B7280"] = AppText.BackgroundGray,
+            ["C9CED6"] = AppText.BackgroundSilver,
+            ["F2F4F7"] = AppText.BackgroundWhite,
+            ["17233D"] = AppText.BackgroundNavy,
+            ["1D3327"] = AppText.BackgroundForest,
+            ["8A1D6B"] = AppText.BackgroundMagenta,
+        };
+
+    private string SelectedBackgroundTag() =>
+        (BackgroundComboBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "0E1114";
+
+    private void ApplyBackgroundSelection()
+    {
+        var tag = SelectedBackgroundTag();
+        if (tag.Length == 6 &&
+            int.TryParse(tag, System.Globalization.NumberStyles.HexNumber, null, out var rgb))
+        {
+            Viewport.SetBackgroundColor(new Vector3(
+                ((rgb >> 16) & 0xFF) / 255f,
+                ((rgb >> 8) & 0xFF) / 255f,
+                (rgb & 0xFF) / 255f));
+        }
+    }
+
+    private void RestoreBackground(string? tag)
+    {
+        foreach (var item in BackgroundComboBox.Items.OfType<ComboBoxItem>())
+        {
+            if (string.Equals(item.Tag as string, tag, StringComparison.OrdinalIgnoreCase))
+            {
+                BackgroundComboBox.SelectedItem = item;
+                return;
+            }
+        }
+    }
+
     private async Task SaveSettingsAsync(string? dataPath = null)
     {
         Directory.CreateDirectory(AppDataDirectory);
@@ -385,7 +455,8 @@ public partial class MainWindow : Window
             dataPath ?? _dataLocator?.DataPath ?? "",
             AppLocalizer.LanguageCode(_language),
             _selectedSkinType1Id,
-            _selectedSkinType2Id);
+            _selectedSkinType2Id,
+            SelectedBackgroundTag());
         await File.WriteAllTextAsync(SettingsPath, JsonSerializer.Serialize(settings));
     }
 
@@ -507,7 +578,8 @@ public partial class MainWindow : Window
         string DataPath = "",
         string Language = "en",
         int SkinType1 = DefaultSkinType1Id,
-        int SkinType2 = DefaultSkinType2Id);
+        int SkinType2 = DefaultSkinType2Id,
+        string Background = "0E1114");
 
     private sealed record ShapeHistoryState(ShapeProfile Profile, ShapeAdjustFile? ShapeAdjust);
 }

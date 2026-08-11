@@ -58,7 +58,20 @@ public sealed record RenderMaterial(
     RenderTexture? NormalTexture = null,
     RenderTexture? MultiTexture = null,
     Pso2ColorMapping ColorMapping = default,
-    RenderTextureUvSets TextureUvSets = default);
+    RenderTextureUvSets TextureUvSets = default,
+    MaterialBlendMode BlendMode = MaterialBlendMode.Opaque)
+{
+    public bool IsTransparent => BlendMode is
+        MaterialBlendMode.AlphaBlend or MaterialBlendMode.Additive;
+}
+
+public enum MaterialBlendMode
+{
+    Opaque,
+    Cutout,
+    AlphaBlend,
+    Additive,
+}
 
 public readonly record struct RenderTextureUvSets(
     int Diffuse = 0,

@@ -7,7 +7,7 @@ PSO2:NGS character body shapes with outfit shape-adjust AQM files (`_sa.aqm`).
 It provides a model preview and sliders for applying, editing, and saving those
 post-adjustments without using Blender.
 
-> **Current version:** 1.0.0. Core model loading, character shaping, texture
+> **Current version:** 1.0.1. Core model loading, character shaping, texture
 > lookup, and shape-adjust workflows are implemented, while rendering and format
 > coverage continue to be refined.
 
@@ -23,8 +23,10 @@ post-adjustments without using Blender.
   model-search cache.
 - Search wearable models by name, ID, file name, or MD5 and filter the results
   to Basewear, Setwear, Outerwear, and classic Costume/Totalwear.
+- Automatically load Outerwear and Innerwear linked to a selected Setwear item.
 - Use English (Global) and Japanese item names where catalog data is available.
 - Select Type 1 and Type 2 skin textures from the local game data.
+- Choose from eight viewport background colors for better outfit visibility.
 - Switch the application UI between English (Global), Japanese, and Korean.
 
 ## Requirements

@@ -14,7 +14,9 @@ public sealed record ModelCatalogRecord(
     string FileName,
     string Hash,
     string? HighQualityFileName,
-    string? HighQualityHash)
+    string? HighQualityHash,
+    int? LinkedInnerId = null,
+    int? LinkedOuterId = null)
 {
     public string DisplayName => !string.IsNullOrWhiteSpace(NameEnglish)
         ? NameEnglish
@@ -31,7 +33,7 @@ public sealed record ModelCatalogBuildResult(
 
 public sealed class ModelCatalog
 {
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
 
     /// <summary>
     /// The only object types the search UI offers. Everything else stays in
@@ -123,7 +125,8 @@ public sealed class ModelCatalog
 
         command.CommandText = $"""
             SELECT object_type, id, adjusted_id, name_jp, name_en,
-                   file_name, hash, ex_file_name, ex_hash
+                   file_name, hash, ex_file_name, ex_hash,
+                   linked_inner_id, linked_outer_id
             FROM objects
             {(predicates.Count == 0 ? "" : "WHERE " + string.Join(" AND ", predicates))}
             ORDER BY CASE WHEN CAST(id AS TEXT) = $query THEN 0 ELSE 1 END,
@@ -146,7 +149,9 @@ public sealed class ModelCatalog
                 reader.GetString(5),
                 reader.GetString(6),
                 reader.IsDBNull(7) ? null : reader.GetString(7),
-                reader.IsDBNull(8) ? null : reader.GetString(8)));
+                reader.IsDBNull(8) ? null : reader.GetString(8),
+                reader.IsDBNull(9) ? null : reader.GetInt32(9),
+                reader.IsDBNull(10) ? null : reader.GetInt32(10)));
         }
 
         return result;
@@ -159,7 +164,8 @@ public sealed class ModelCatalog
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT object_type, id, adjusted_id, name_jp, name_en,
-                   file_name, hash, ex_file_name, ex_hash
+                   file_name, hash, ex_file_name, ex_hash,
+                   linked_inner_id, linked_outer_id
             FROM objects
             WHERE object_type = $type
             ORDER BY id
@@ -179,10 +185,47 @@ public sealed class ModelCatalog
                 reader.GetString(5),
                 reader.GetString(6),
                 reader.IsDBNull(7) ? null : reader.GetString(7),
-                reader.IsDBNull(8) ? null : reader.GetString(8)));
+                reader.IsDBNull(8) ? null : reader.GetString(8),
+                reader.IsDBNull(9) ? null : reader.GetInt32(9),
+                reader.IsDBNull(10) ? null : reader.GetInt32(10)));
         }
 
         return result;
+    }
+
+    /// <summary>One record by exact type and id - how a linked
+    /// inner/outerwear id becomes a loadable file.</summary>
+    public ModelCatalogRecord? FindByTypeAndId(string objectType, int id)
+    {
+        using var connection = OpenReadOnly();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT object_type, id, adjusted_id, name_jp, name_en,
+                   file_name, hash, ex_file_name, ex_hash,
+                   linked_inner_id, linked_outer_id
+            FROM objects
+            WHERE object_type = $type AND id = $id
+            """;
+        command.Parameters.AddWithValue("$type", objectType);
+        command.Parameters.AddWithValue("$id", id);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        return new ModelCatalogRecord(
+            reader.GetString(0),
+            reader.GetInt32(1),
+            reader.GetInt32(2),
+            reader.GetString(3),
+            reader.GetString(4),
+            reader.GetString(5),
+            reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetString(7),
+            reader.IsDBNull(8) ? null : reader.GetString(8),
+            reader.IsDBNull(9) ? null : reader.GetInt32(9),
+            reader.IsDBNull(10) ? null : reader.GetInt32(10));
     }
 
     public static ModelCatalogBuildResult BuildFromGame(
@@ -264,14 +307,22 @@ public sealed class ModelCatalog
         foreach (var record in CreateRecords(
                      "accessory", "ac", cmx.accessoryDict.Keys,
                      ReadNames(accessoryText, "decoy"), cmx.accessoryIdLink)) yield return record;
-        foreach (var record in CreateRecords(
-                     "basewear", "bw", cmx.baseWearDict.Keys,
-                     ReadNames(partsText, "basewear"), cmx.baseWearIdLink)) yield return record;
-        foreach (var id in cmx.costumeDict.Keys)
+        var basewearNames = ReadNames(partsText, "basewear");
+        foreach (var pair in cmx.baseWearDict)
         {
             yield return CreateRecord(
-                ClassifyCostumeId(id), "bd", id, costumeNames,
-                AdjustedId(id, cmx.costumeIdLink));
+                "basewear", "bw", pair.Key, basewearNames,
+                AdjustedId(pair.Key, cmx.baseWearIdLink),
+                OptionalId(pair.Value.body2.linkedInnerId),
+                OptionalId(pair.Value.body2.linkedOuterId));
+        }
+        foreach (var pair in cmx.costumeDict)
+        {
+            yield return CreateRecord(
+                ClassifyCostumeId(pair.Key), "bd", pair.Key, costumeNames,
+                AdjustedId(pair.Key, cmx.costumeIdLink),
+                OptionalId(pair.Value.body2.linkedInnerId),
+                OptionalId(pair.Value.body2.linkedOuterId));
         }
         foreach (var record in CreateRecords(
                      "bodypaint", "b1", cmx.bodyPaintDict.Keys,
@@ -344,7 +395,9 @@ public sealed class ModelCatalog
         string tag,
         int id,
         IReadOnlyDictionary<int, (string Japanese, string English)> names,
-        int adjustedId)
+        int adjustedId,
+        int? linkedInnerId = null,
+        int? linkedOuterId = null)
     {
         var prefix = id >= 100000 ? "character/making_reboot/pl_" : "character/making/pl_";
         var fileName = $"{prefix}{tag}_{adjustedId:00000}.ice";
@@ -366,8 +419,13 @@ public sealed class ModelCatalog
             fileName,
             Pso2DataLocator.ComputeHash(fileName),
             highQuality,
-            highQuality is null ? null : Pso2DataLocator.ComputeHash(highQuality));
+            highQuality is null ? null : Pso2DataLocator.ComputeHash(highQuality),
+            linkedInnerId,
+            linkedOuterId);
     }
+
+    /// <summary>CMX stores "no link" as -1 (occasionally 0).</summary>
+    private static int? OptionalId(int value) => value > 0 ? value : null;
 
     /// <summary>
     /// The CMX costume dictionary mixes classic full outfits with cast
@@ -486,6 +544,8 @@ public sealed class ModelCatalog
                     hash TEXT NOT NULL,
                     ex_file_name TEXT,
                     ex_hash TEXT,
+                    linked_inner_id INTEGER,
+                    linked_outer_id INTEGER,
                     PRIMARY KEY(object_type, id)
                 );
                 CREATE INDEX objects_name_jp ON objects(name_jp);
@@ -502,7 +562,8 @@ public sealed class ModelCatalog
         insert.Transaction = transaction;
         insert.CommandText = """
             INSERT INTO objects VALUES(
-                $type, $id, $adjusted, $jp, $en, $file, $hash, $exFile, $exHash)
+                $type, $id, $adjusted, $jp, $en, $file, $hash, $exFile, $exHash,
+                $linkedInner, $linkedOuter)
             """;
         var type = insert.Parameters.Add("$type", SqliteType.Text);
         var id = insert.Parameters.Add("$id", SqliteType.Integer);
@@ -513,6 +574,8 @@ public sealed class ModelCatalog
         var hash = insert.Parameters.Add("$hash", SqliteType.Text);
         var exFile = insert.Parameters.Add("$exFile", SqliteType.Text);
         var exHash = insert.Parameters.Add("$exHash", SqliteType.Text);
+        var linkedInner = insert.Parameters.Add("$linkedInner", SqliteType.Integer);
+        var linkedOuter = insert.Parameters.Add("$linkedOuter", SqliteType.Integer);
         foreach (var record in records)
         {
             type.Value = record.ObjectType;
@@ -524,6 +587,8 @@ public sealed class ModelCatalog
             hash.Value = record.Hash;
             exFile.Value = (object?)record.HighQualityFileName ?? DBNull.Value;
             exHash.Value = (object?)record.HighQualityHash ?? DBNull.Value;
+            linkedInner.Value = (object?)record.LinkedInnerId ?? DBNull.Value;
+            linkedOuter.Value = (object?)record.LinkedOuterId ?? DBNull.Value;
             insert.ExecuteNonQuery();
         }
 

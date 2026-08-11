@@ -23,7 +23,10 @@ public sealed class ModelViewport : OpenGlControlBase
 
     private readonly object _sceneLock = new();
     private readonly List<GpuMesh> _gpuMeshes = [];
-    private readonly Dictionary<string, uint> _gpuTextures = new(StringComparer.OrdinalIgnoreCase);
+    // Keyed by texture instance, not name: two loads of the same file (or an
+    // edited ICE reloaded) produce equal names with different pixels, and a
+    // name key would hand one model the other's texture.
+    private readonly Dictionary<(RenderTexture Texture, bool Srgb), uint> _gpuTextures = new();
     private IReadOnlyList<RenderModel> _pendingModels = [];
     private RenderTextureSet? _pendingSkinTextureT1;
     private RenderTextureSet? _pendingSkinTextureT2;
@@ -58,7 +61,9 @@ public sealed class ModelViewport : OpenGlControlBase
     private int _colorChannelsLocation = -1;
     private int _multiplyColorLocation = -1;
     private int _alphaCutoffLocation = -1;
+    private int _blendModeLocation = -1;
 
+    private Vector3 _background = new(0.055f, 0.065f, 0.08f);
     private Vector3 _focus = DefaultFocus;
     private float _yaw = DefaultYaw;
     private float _pitch = DefaultPitch;
@@ -80,6 +85,13 @@ public sealed class ModelViewport : OpenGlControlBase
     public event EventHandler<ViewportCameraState>? CameraChanged;
 
     public void SetLanguage(AppLanguage language) => _language = language;
+
+    /// <summary>Viewport clear color, as plain sRGB [0..1] components.</summary>
+    public void SetBackgroundColor(Vector3 color)
+    {
+        _background = Vector3.Clamp(color, Vector3.Zero, Vector3.One);
+        RequestNextFrameRendering();
+    }
 
     public void SetModels(IEnumerable<RenderModel> models)
     {
@@ -169,6 +181,7 @@ public sealed class ModelViewport : OpenGlControlBase
             _colorChannelsLocation = _gl.GetUniformLocation(_program, "uColorChannels");
             _multiplyColorLocation = _gl.GetUniformLocation(_program, "uMultiplyColor");
             _alphaCutoffLocation = _gl.GetUniformLocation(_program, "uAlphaCutoff");
+            _blendModeLocation = _gl.GetUniformLocation(_program, "uBlendMode");
 
             var block = _gl.GetUniformBlockIndex(_program, "Bones");
             _gl.UniformBlockBinding(_program, block, 0);
@@ -182,7 +195,7 @@ public sealed class ModelViewport : OpenGlControlBase
             _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, _boneBuffer);
 
             _gl.Enable(EnableCap.DepthTest);
-            _gl.Enable(EnableCap.Blend);
+            _gl.Disable(EnableCap.Blend);
             _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             _gl.Disable(EnableCap.CullFace);
             ReportRendererStatus(AppLocalizer.Text(_language, AppText.RendererReady, GlVersion));
@@ -232,7 +245,7 @@ public sealed class ModelViewport : OpenGlControlBase
             var height = Math.Max(1u, (uint)Math.Round(Bounds.Height));
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)framebuffer);
             _gl.Viewport(0, 0, width, height);
-            _gl.ClearColor(0.055f, 0.065f, 0.08f, 1f);
+            _gl.ClearColor(_background.X, _background.Y, _background.Z, 1f);
             _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
 
             var viewProjection = BuildViewProjection(width / (float)height);
@@ -251,8 +264,50 @@ public sealed class ModelViewport : OpenGlControlBase
             _gl.Uniform1(_multiTextureLocation, 3);
             _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, _boneBuffer);
 
-            foreach (var mesh in _gpuMeshes)
+            // Opaque/cutout materials write depth without blending. Transparent
+            // and additive materials follow far-to-near without touching depth.
+            // Leaving blending enabled for opaque materials lets tiny non-zero
+            // BC alpha values reveal the surface below as single-pixel specks.
+            var drawOrder = _gpuMeshes
+                .Where(value => !value.IsTransparent)
+                .Concat(_gpuMeshes
+                    .Where(value => value.IsTransparent)
+                    .OrderByDescending(value =>
+                        Vector3.DistanceSquared(cameraPosition, value.Center)));
+            var depthWriteEnabled = true;
+            var blendingEnabled = false;
+            var activeBlendMode = MaterialBlendMode.Opaque;
+            foreach (var mesh in drawOrder)
             {
+                if (mesh.IsTransparent == depthWriteEnabled)
+                {
+                    depthWriteEnabled = !mesh.IsTransparent;
+                    _gl.DepthMask(depthWriteEnabled);
+                }
+
+                if (mesh.IsTransparent != blendingEnabled)
+                {
+                    blendingEnabled = mesh.IsTransparent;
+                    if (blendingEnabled)
+                    {
+                        _gl.Enable(EnableCap.Blend);
+                    }
+                    else
+                    {
+                        _gl.Disable(EnableCap.Blend);
+                    }
+                }
+
+                if (mesh.BlendMode != activeBlendMode)
+                {
+                    activeBlendMode = mesh.BlendMode;
+                    _gl.BlendFunc(
+                        BlendingFactor.SrcAlpha,
+                        activeBlendMode == MaterialBlendMode.Additive
+                            ? BlendingFactor.One
+                            : BlendingFactor.OneMinusSrcAlpha);
+                }
+
                 _gl.Uniform4(
                     _baseColorLocation,
                     mesh.BaseColor.X,
@@ -287,6 +342,7 @@ public sealed class ModelViewport : OpenGlControlBase
                     mesh.ColorChannels.W);
                 _gl.Uniform1(_multiplyColorLocation, mesh.MultiplyColor ? 1 : 0);
                 _gl.Uniform1(_alphaCutoffLocation, mesh.AlphaCutoff);
+                _gl.Uniform1(_blendModeLocation, (int)mesh.BlendMode);
                 _gl.ActiveTexture(TextureUnit.Texture0);
                 _gl.BindTexture(TextureTarget.Texture2D, mesh.Texture);
                 _gl.ActiveTexture(TextureUnit.Texture1);
@@ -303,6 +359,9 @@ public sealed class ModelViewport : OpenGlControlBase
                     null);
             }
 
+            _gl.DepthMask(true);
+            _gl.Disable(EnableCap.Blend);
+            _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             _gl.BindVertexArray(0);
             RecordRenderedFrame();
         }
@@ -633,12 +692,30 @@ public sealed class ModelViewport : OpenGlControlBase
                 mapping.Alpha == Pso2ColorChannel.Unused ? 0f : 1f),
             material.UsesSkinTexture,
             material.AlphaCutoff / 255f,
-            material.TextureUvSets);
+            material.TextureUvSets,
+            material.BlendMode,
+            MeshCenter(mesh));
+    }
+
+    private static Vector3 MeshCenter(RenderMesh mesh)
+    {
+        if (mesh.Positions.Length == 0)
+        {
+            return Vector3.Zero;
+        }
+
+        var sum = Vector3.Zero;
+        foreach (var position in mesh.Positions)
+        {
+            sum += position;
+        }
+
+        return sum / mesh.Positions.Length;
     }
 
     private unsafe uint GetOrUploadTexture(GL api, RenderTexture texture, bool srgb)
     {
-        var cacheKey = $"{(srgb ? "srgb" : "data")}:{texture.Name}";
+        var cacheKey = (texture, srgb);
         if (_gpuTextures.TryGetValue(cacheKey, out var existing))
         {
             return existing;
@@ -813,7 +890,13 @@ public sealed class ModelViewport : OpenGlControlBase
         Vector4 ColorChannels,
         bool MultiplyColor,
         float AlphaCutoff,
-        RenderTextureUvSets TextureUvSets);
+        RenderTextureUvSets TextureUvSets,
+        MaterialBlendMode BlendMode,
+        Vector3 Center)
+    {
+        public bool IsTransparent => BlendMode is
+            MaterialBlendMode.AlphaBlend or MaterialBlendMode.Additive;
+    }
 
     private enum PointerMode
     {
@@ -896,6 +979,7 @@ public sealed class ModelViewport : OpenGlControlBase
         uniform vec4 uColorChannels;
         uniform bool uMultiplyColor;
         uniform float uAlphaCutoff;
+        uniform int uBlendMode;
         out vec4 FragColor;
 
         vec3 colorize(vec3 inputColor, vec3 target, float factor)
@@ -951,7 +1035,10 @@ public sealed class ModelViewport : OpenGlControlBase
                 albedo.rgb = colorize(albedo.rgb, uColor3.rgb, mask.b);
                 albedo.rgb = colorize(albedo.rgb, uColor4.rgb, mask.a);
             }
-            if (albedo.a < uAlphaCutoff)
+            // 0=opaque, 1=cutout/hollow, 2=blendalpha, 3=add. Cutout uses
+            // PSO2's strict "above threshold" rule, so alpha zero is rejected
+            // even when the stored cutoff is zero.
+            if (uBlendMode == 1 && albedo.a <= uAlphaCutoff)
             {
                 discard;
             }
@@ -969,7 +1056,12 @@ public sealed class ModelViewport : OpenGlControlBase
             vec3 specularColor = mix(vec3(0.04), albedo.rgb, metallic);
             vec3 lit = albedo.rgb * (hemisphere * ambientOcclusion + diffuse * 0.55) +
                        specularColor * specular * (0.2 + metallic * 0.35);
-            FragColor = vec4(lit + albedo.rgb * multi.a, albedo.a);
+            vec3 outColor = lit + albedo.rgb * multi.a;
+            // Textures are sampled through SRGB8 (linear values) and the
+            // palette arrives linear, but the swapchain is not an sRGB
+            // target - encode on the way out or every midtone reads dark.
+            float outputAlpha = uBlendMode >= 2 ? albedo.a : 1.0;
+            FragColor = vec4(pow(clamp(outColor, 0.0, 1.0), vec3(1.0 / 2.2)), outputAlpha);
         }
         """;
 }
