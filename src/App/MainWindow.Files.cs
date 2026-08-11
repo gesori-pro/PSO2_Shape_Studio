@@ -113,7 +113,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task LoadPathsAsync(IEnumerable<string> inputPaths)
+    private async Task LoadPathsAsync(
+        IEnumerable<string> inputPaths,
+        IReadOnlyDictionary<string, Pso2ColorMapping>? bodyColorMappings = null)
     {
         var paths = inputPaths
             .Where(path => !string.IsNullOrWhiteSpace(path) && IsSupportedPath(path))
@@ -129,7 +131,7 @@ public partial class MainWindow : Window
         StatusText.Text = L(AppText.ReadingFiles);
         try
         {
-            var result = await Task.Run(() => LoadFiles(paths));
+            var result = await Task.Run(() => LoadFiles(paths, bodyColorMappings));
             if (result.Skeleton is not null)
             {
                 _skeleton = result.Skeleton;
@@ -174,7 +176,10 @@ public partial class MainWindow : Window
             if (result.ArchiveDdsCount > 0) parts.Add(L(AppText.IceDdsCount, result.ArchiveDdsCount));
             if (result.ArchiveEntryCount > 0) parts.Add(L(AppText.IceEntriesCount, result.ArchiveEntryCount));
             if (_skeleton is not null) parts.Add(L(AppText.BonesCount, _skeleton.Bones.Count));
-            if (result.Proportions is not null) parts.Add(L(AppText.FnpBonesCount, result.Proportions.Bones.Count));
+            if (result.Proportions is not null)
+            {
+                parts.Add(L(AppText.CharacterBonesCount, result.Proportions.Bones.Count));
+            }
             if (result.ShapeAdjust is not null)
             {
                 parts.Add(L(AppText.AqmAdjustmentsCount, result.ShapeAdjust.Adjustments.Count));
@@ -191,7 +196,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private LoadResult LoadFiles(IReadOnlyList<string> paths)
+    private LoadResult LoadFiles(
+        IReadOnlyList<string> paths,
+        IReadOnlyDictionary<string, Pso2ColorMapping>? bodyColorMappings)
     {
         AqnSkeleton? skeleton = null;
         ProportionResult? proportions = null;
@@ -210,7 +217,11 @@ public partial class MainWindow : Window
         var models = new List<RenderModel>();
         foreach (var path in paths.Where(IsArchivePath))
         {
-            var archive = ModelArchiveLoader.Load(path);
+            var mapping = bodyColorMappings is not null &&
+                          bodyColorMappings.TryGetValue(path, out var configuredMapping)
+                ? configuredMapping
+                : (Pso2ColorMapping?)null;
+            var archive = ModelArchiveLoader.Load(path, mapping);
             models.AddRange(archive.Models);
             skeleton ??= archive.Skeleton;
             shapeAdjust ??= archive.ShapeAdjustData is { } shapeBytes
@@ -247,7 +258,7 @@ public partial class MainWindow : Window
             }
         }
 
-        var characterPath = paths.FirstOrDefault(path => IsCharacterExtension(Extension(path)));
+        var characterPath = paths.FirstOrDefault(CharacterFile.IsSupportedPath);
         if (characterPath is not null)
         {
             var character = CharacterFile.Load(characterPath);
@@ -298,7 +309,7 @@ public partial class MainWindow : Window
         var extension = Extension(path);
         return extension is ".aqp" or ".aqn" or ".aqm" or ".ice" ||
                IsArchivePath(path) ||
-               IsCharacterExtension(extension);
+               CharacterFile.IsSupportedPath(path);
     }
 
     private static bool IsArchivePath(string path)
@@ -313,9 +324,6 @@ public partial class MainWindow : Window
                name.Length == 32 &&
                name.All(Uri.IsHexDigit);
     }
-
-    private static bool IsCharacterExtension(string extension) =>
-        extension is ".fnp" or ".fhp" or ".fnpu" or ".fhpu";
 
     private static string Extension(string path) => Path.GetExtension(path).ToLowerInvariant();
 

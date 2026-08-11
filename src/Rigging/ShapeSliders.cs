@@ -9,7 +9,14 @@ public sealed record ShapeGroupDefinition(
     string LeftBone,
     string? RightBone,
     IReadOnlyDictionary<string, int> NodeIds,
-    bool SupportsRotation = true);
+    bool SupportsRotation = true,
+    bool ShowsRotation = true,
+    bool SupportsPosition = true,
+    bool SupportsScaleX = true,
+    bool SupportsScaleY = true,
+    bool SupportsScaleZ = true,
+    double ScaleMinimum = 0.1,
+    double ScaleMaximum = 4.0);
 
 public readonly record struct ShapeValue(Vector3 Scale, Vector3 Position, Vector3 EulerDegrees)
 {
@@ -60,6 +67,20 @@ public static class ShapeSliders
 {
     public static IReadOnlyList<ShapeGroupDefinition> Groups { get; } =
     [
+        new ShapeGroupDefinition(
+            "bodyroot",
+            "Sole Height (body_root Y)",
+            "body_root",
+            null,
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["body_root"] = 1 },
+            SupportsRotation: false,
+            ShowsRotation: false,
+            SupportsPosition: false,
+            SupportsScaleX: false,
+            SupportsScaleY: true,
+            SupportsScaleZ: false,
+            ScaleMinimum: 0.8,
+            ScaleMaximum: 1.2),
         Group("breast", "Breast", "l_breast", "r_breast", ("l_breast", 41), ("r_breast", 43)),
         Group("breast2", "Breast Scale", "l_breast_scale", "r_breast_scale", ("l_breast_scale", 124), ("r_breast_scale", 125)),
         Group("cbreast2", "Center Breast Scale", "c_breast_scale", null, ("c_breast_scale", 130)),

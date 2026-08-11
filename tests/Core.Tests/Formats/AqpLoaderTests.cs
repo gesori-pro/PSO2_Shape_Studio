@@ -1,5 +1,7 @@
 using System.Numerics;
+using Pso2ShapeStudio.Character;
 using Pso2ShapeStudio.Formats;
+using Pso2ShapeStudio.GameData;
 
 namespace Pso2ShapeStudio.Core.Tests.Formats;
 
@@ -91,4 +93,42 @@ public sealed class AqpLoaderTests
     [InlineData("model.aqp", Pso2BodyType.Unknown)]
     public void DetectBodyTypeUsesNgsRebootModelId(string source, Pso2BodyType expected) =>
         Assert.Equal(expected, AqpLoader.DetectBodyType(source));
+
+    [ExternalDataFact("PSO2_GAME_DIR")]
+    public void YukariSetwearResolvesItsOwnAtlasWithoutReplacingClothesWithSkin()
+    {
+        var locator = new Pso2DataLocator(TestPaths.GameDirectory);
+        var basewearPath = locator.Resolve("character/making_reboot/pl_bw_219010.ice")?.Path;
+        var outerwearPath = locator.Resolve("character/making_reboot/pl_ow_219010.ice")?.Path;
+        Assert.NotNull(basewearPath);
+        Assert.NotNull(outerwearPath);
+
+        var baseColors = new Pso2ColorMapping(Pso2ColorChannel.Base1, Pso2ColorChannel.Base2);
+        var basewear = Assert.Single(ModelArchiveLoader.Load(basewearPath, baseColors).Models);
+        var outerLayer = Assert.Single(basewear.Materials, material => material.Name == "outer_opa");
+        var baseLayer = Assert.Single(basewear.Materials, material => material.Name == "base_opa");
+
+        Assert.False(outerLayer.UsesSkinTexture);
+        Assert.False(baseLayer.UsesSkinTexture);
+        Assert.Equal(baseColors, outerLayer.ColorMapping);
+        Assert.Equal(baseColors, baseLayer.ColorMapping);
+        AssertWearTextures(outerLayer, "_bw_");
+        AssertWearTextures(baseLayer, "_bw_");
+        Assert.All(
+            basewear.Materials.Where(material => material.Name.StartsWith("bodyskin", StringComparison.Ordinal)),
+            material => Assert.True(material.UsesSkinTexture));
+
+        var linkedOuter = Assert.Single(ModelArchiveLoader.Load(outerwearPath, baseColors).Models);
+        var linkedLayer = Assert.Single(linkedOuter.Materials);
+        Assert.Equal(baseColors, linkedLayer.ColorMapping);
+        AssertWearTextures(linkedLayer, "_ow_");
+
+        static void AssertWearTextures(RenderMaterial material, string category)
+        {
+            Assert.Contains(category, material.DiffuseTexture!.Name, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(category, material.MaskTexture!.Name, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(category, material.NormalTexture!.Name, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(category, material.MultiTexture!.Name, StringComparison.OrdinalIgnoreCase);
+        }
+    }
 }

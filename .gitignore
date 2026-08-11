@@ -6,8 +6,14 @@
 TestResults/
 
 # Player data and game assets must never enter this public repository.
+*.fdp
 *.fnp
 *.fhp
+*.fcp
+*.fdpu
+*.fnpu
+*.fhpu
+*.fcpu
 *.aqm
 *.aqp
 *.aqn

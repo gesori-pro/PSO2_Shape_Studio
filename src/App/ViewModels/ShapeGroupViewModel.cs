@@ -26,6 +26,13 @@ public sealed class ShapeGroupViewModel : INotifyPropertyChanged
         _defaultLabel = definition.Label;
         _language = language;
         SupportsRotation = definition.SupportsRotation;
+        ShowsRotation = definition.ShowsRotation;
+        SupportsPosition = definition.SupportsPosition;
+        SupportsScaleX = definition.SupportsScaleX;
+        SupportsScaleY = definition.SupportsScaleY;
+        SupportsScaleZ = definition.SupportsScaleZ;
+        ScaleMinimum = definition.ScaleMinimum;
+        ScaleMaximum = definition.ScaleMaximum;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -37,6 +44,13 @@ public sealed class ShapeGroupViewModel : INotifyPropertyChanged
     public string PositionLabel => AppLocalizer.Text(_language, AppText.Position);
     public string RotationLabel => AppLocalizer.Text(_language, AppText.Rotation);
     public bool SupportsRotation { get; }
+    public bool ShowsRotation { get; }
+    public bool SupportsPosition { get; }
+    public bool SupportsScaleX { get; }
+    public bool SupportsScaleY { get; }
+    public bool SupportsScaleZ { get; }
+    public double ScaleMinimum { get; }
+    public double ScaleMaximum { get; }
 
     public double ScaleX { get => _scaleX; set => Set(ref _scaleX, value); }
     public double ScaleY { get => _scaleY; set => Set(ref _scaleY, value); }

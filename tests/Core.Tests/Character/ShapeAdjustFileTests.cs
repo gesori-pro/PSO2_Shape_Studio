@@ -47,6 +47,38 @@ public sealed class ShapeAdjustFileTests
         Assert.InRange(waist.Scale.Z, 1.34999f, 1.35001f);
     }
 
+    [ExternalDataFact("PSO2_SHAPE_TEST_DATA")]
+    public void BodyRootYScaleWritesNodeOneAndRoundTrips()
+    {
+        var skeleton = AqnSkeleton.Load(AqnPath);
+        var profile = new ShapeProfile
+        {
+            ["bodyroot"] = new ShapeValue(new Vector3(1f, 1.06f, 1f), Vector3.Zero, Vector3.Zero),
+        };
+
+        var built = ShapeAdjustFile.Build(skeleton, profile);
+        var root = Assert.Contains(1, built.Adjustments);
+        Assert.Equal("body_root", root.Name);
+        Assert.Equal(new Vector3(1f, 1.06f, 1f), root.Scale);
+
+        var reloaded = ShapeAdjustFile.Load(built.Motion.GetBytesNIFL()).ToProfile()["bodyroot"];
+        Assert.InRange(reloaded.Scale.Y, 1.05999f, 1.06001f);
+    }
+
+    [ExternalDataFact("PSO2_SHAPE_TEST_DATA")]
+    public void BodyRootIdentityRemovesCarriedHeightAdjustment()
+    {
+        var skeleton = AqnSkeleton.Load(AqnPath);
+        var carried = new Dictionary<int, ShapeAdjustment>
+        {
+            [1] = new("body_root", new Vector3(1f, 1.08f, 1f), null, null),
+        };
+
+        var built = ShapeAdjustFile.Build(skeleton, new ShapeProfile(), carried);
+
+        Assert.DoesNotContain(1, built.Adjustments.Keys);
+    }
+
     private static void AssertMotionsEqual(AquaMotion expected, AquaMotion actual, float tolerance)
     {
         Assert.Equal(expected.moHeader.variant, actual.moHeader.variant);

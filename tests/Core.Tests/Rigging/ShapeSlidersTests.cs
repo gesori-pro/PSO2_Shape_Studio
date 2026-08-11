@@ -15,13 +15,26 @@ public sealed class ShapeSlidersTests
     private static string PoseGoldenPath => TestPaths.GoldenFocuslitePose;
 
     [Fact]
-    public void DefinitionsMatchNormativeFourteenGroupOrder()
+    public void DefinitionsIncludeBodyRootHeightBeforeNormativeShapeGroups()
     {
-        Assert.Equal(14, ShapeSliders.Groups.Count);
+        Assert.Equal(15, ShapeSliders.Groups.Count);
         Assert.Equal(
-            ["breast", "breast2", "cbreast2", "clav", "waist", "hip", "pelvis", "hiptw", "thigh", "thightw", "thightw2", "calf0", "calf", "foot"],
+            ["bodyroot", "breast", "breast2", "cbreast2", "clav", "waist", "hip", "pelvis", "hiptw", "thigh", "thightw", "thightw2", "calf0", "calf", "foot"],
             ShapeSliders.Groups.Select(group => group.Key));
-        Assert.False(ShapeSliders.Groups.Single(group => group.Key == "clav").SupportsRotation);
+        var bodyRoot = ShapeSliders.Groups[0];
+        Assert.Equal("body_root", bodyRoot.LeftBone);
+        Assert.Equal(1, bodyRoot.NodeIds["body_root"]);
+        Assert.False(bodyRoot.SupportsScaleX);
+        Assert.True(bodyRoot.SupportsScaleY);
+        Assert.False(bodyRoot.SupportsScaleZ);
+        Assert.False(bodyRoot.SupportsPosition);
+        Assert.False(bodyRoot.SupportsRotation);
+        Assert.False(bodyRoot.ShowsRotation);
+        Assert.Equal(0.8, bodyRoot.ScaleMinimum);
+        Assert.Equal(1.2, bodyRoot.ScaleMaximum);
+        var clavicle = ShapeSliders.Groups.Single(group => group.Key == "clav");
+        Assert.False(clavicle.SupportsRotation);
+        Assert.True(clavicle.ShowsRotation);
     }
 
     [Fact]

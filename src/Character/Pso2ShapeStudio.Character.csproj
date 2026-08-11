@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Character customization files: fnp/fhp parsing, Blowfish, slider-to-
+  <!-- Character customization files: fdp/fnp/fhp/fcp parsing, Blowfish, slider-to-
        bone math, and character colors. Pure managed code - the one module
        with no AquaModelLibrary dependency, so it stays trivially testable. -->
   <PropertyGroup>

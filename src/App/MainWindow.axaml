@@ -45,6 +45,8 @@
               <ComboBoxItem Content="Forest" Tag="1D3327" />
               <ComboBoxItem Content="Magenta" Tag="8A1D6B" />
             </ComboBox>
+            <CheckBox x:Name="FloorGuideCheckBox" Content="Floor guide" IsChecked="True"
+                      ToolTip.Tip="Show the world Y=0 floor guide" />
           </StackPanel>
         </Grid>
 
@@ -161,31 +163,39 @@
                       <TextBlock Text="{Binding ScaleLabel}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
                       <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,50"
                             ColumnSpacing="6" RowSpacing="2">
-                        <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
-                        <Slider Grid.Column="1" Minimum="0.1" Maximum="4" TickFrequency="0.01"
+                        <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
+                                   IsVisible="{Binding SupportsScaleX}" />
+                        <Slider Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="0.01"
                                 IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
-                                Value="{Binding ScaleX, Mode=TwoWay}" />
+                                Value="{Binding ScaleX, Mode=TwoWay}" IsVisible="{Binding SupportsScaleX}" />
                         <TextBlock Grid.Column="2" Text="{Binding ScaleX, StringFormat='{}{0:F2}'}"
-                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   IsVisible="{Binding SupportsScaleX}" />
 
-                        <TextBlock Grid.Row="1" Text="Y" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
-                        <Slider Grid.Row="1" Grid.Column="1" Minimum="0.1" Maximum="4" TickFrequency="0.01"
+                        <TextBlock Grid.Row="1" Text="Y" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
+                                   IsVisible="{Binding SupportsScaleY}" />
+                        <Slider Grid.Row="1" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="0.01"
                                 IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
-                                Value="{Binding ScaleY, Mode=TwoWay}" />
+                                Value="{Binding ScaleY, Mode=TwoWay}" IsVisible="{Binding SupportsScaleY}" />
                         <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding ScaleY, StringFormat='{}{0:F2}'}"
-                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   IsVisible="{Binding SupportsScaleY}" />
 
-                        <TextBlock Grid.Row="2" Text="Z" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
-                        <Slider Grid.Row="2" Grid.Column="1" Minimum="0.1" Maximum="4" TickFrequency="0.01"
+                        <TextBlock Grid.Row="2" Text="Z" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
+                                   IsVisible="{Binding SupportsScaleZ}" />
+                        <Slider Grid.Row="2" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="0.01"
                                 IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
-                                Value="{Binding ScaleZ, Mode=TwoWay}" />
+                                Value="{Binding ScaleZ, Mode=TwoWay}" IsVisible="{Binding SupportsScaleZ}" />
                         <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding ScaleZ, StringFormat='{}{0:F2}'}"
-                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   IsVisible="{Binding SupportsScaleZ}" />
                       </Grid>
 
-                      <TextBlock Text="{Binding PositionLabel}" Margin="0,3,0,0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
+                      <TextBlock Text="{Binding PositionLabel}" Margin="0,3,0,0" FontSize="11"
+                                 Foreground="{DynamicResource SecondaryTextBrush}"
+                                 IsVisible="{Binding SupportsPosition}" />
                       <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,50"
-                            ColumnSpacing="6" RowSpacing="2">
+                            ColumnSpacing="6" RowSpacing="2" IsVisible="{Binding SupportsPosition}">
                         <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
                         <Slider Grid.Column="1" Value="{Binding PositionX, Mode=TwoWay}"
                                 Minimum="-1" Maximum="1" TickFrequency="0.01"
@@ -209,9 +219,10 @@
                       </Grid>
 
                       <TextBlock Text="{Binding RotationLabel}" Margin="0,3,0,0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"
-                                 IsEnabled="{Binding SupportsRotation}" />
+                                 IsVisible="{Binding ShowsRotation}" IsEnabled="{Binding SupportsRotation}" />
                       <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,50"
-                            ColumnSpacing="6" RowSpacing="2" IsEnabled="{Binding SupportsRotation}">
+                            ColumnSpacing="6" RowSpacing="2" IsVisible="{Binding ShowsRotation}"
+                            IsEnabled="{Binding SupportsRotation}">
                         <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
                         <Slider Grid.Column="1" Value="{Binding RotationX, Mode=TwoWay}"
                                 Minimum="-180" Maximum="180" TickFrequency="0.01"
@@ -243,7 +254,7 @@
 
         <StackPanel Grid.Row="6" Margin="0,12,0,0" Spacing="7">
           <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
-            <Button x:Name="LoadCharacterButton" Content="Load FNP / FHP…" IsEnabled="False" />
+            <Button x:Name="LoadCharacterButton" Content="Load character file…" IsEnabled="False" />
             <Button Grid.Column="1" x:Name="LoadAqmButton" Content="Load _sa.aqm…" IsEnabled="False" />
           </Grid>
           <Grid ColumnDefinitions="*,*" ColumnSpacing="7">

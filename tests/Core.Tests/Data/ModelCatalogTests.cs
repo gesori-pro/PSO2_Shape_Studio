@@ -89,6 +89,7 @@ public sealed class ModelCatalogTests
             Assert.NotNull(setwear);
             Assert.Equal(100400, setwear.LinkedOuterId);
             Assert.Null(setwear.LinkedInnerId);
+            Assert.Equal(new ModelColorMapping(3, 4, 0, 0), setwear.ColorMapping);
             Assert.Null(catalog.FindByTypeAndId("setwear", 999999));
         }
         finally
@@ -128,6 +129,7 @@ public sealed class ModelCatalogTests
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
+            PRAGMA user_version=4;
             CREATE TABLE objects(
                 object_type TEXT NOT NULL,
                 id INTEGER NOT NULL,
@@ -140,6 +142,10 @@ public sealed class ModelCatalogTests
                 ex_hash TEXT,
                 linked_inner_id INTEGER,
                 linked_outer_id INTEGER,
+                color_red INTEGER NOT NULL,
+                color_green INTEGER NOT NULL,
+                color_blue INTEGER NOT NULL,
+                color_alpha INTEGER NOT NULL,
                 PRIMARY KEY(object_type, id)
             );
             INSERT INTO objects VALUES(
@@ -147,23 +153,27 @@ public sealed class ModelCatalogTests
                 'character/making_reboot/pl_bw_201630.ice',
                 '1e75629697436ed480353c3ebc1c59b3',
                 'character/making_reboot_ex/pl_bw_201630_ex.ice',
-                'cf540ec3ff917cd65e9fd3e67f4fecfa', NULL, NULL
+                'cf540ec3ff917cd65e9fd3e67f4fecfa', NULL, NULL, 3, 4, 0, 0
             );
             INSERT INTO objects VALUES(
                 'skin', 100000, 100000, 'ベースボディT1', 'Base Body T1',
-                'character/making_reboot/pl_sk_100000.ice', 'a', NULL, NULL, NULL, NULL
+                'character/making_reboot/pl_sk_100000.ice', 'a', NULL, NULL, NULL, NULL,
+                11, 12, 0, 0
             );
             INSERT INTO objects VALUES(
                 'skin', 200000, 200000, 'ベースボディT2', 'Base Body T2',
-                'character/making_reboot/pl_sk_200000.ice', 'b', NULL, NULL, NULL, NULL
+                'character/making_reboot/pl_sk_200000.ice', 'b', NULL, NULL, NULL, NULL,
+                11, 12, 0, 0
             );
             INSERT INTO objects VALUES(
                 'hair', 110000, 110000, 'N-ポニーテール', 'N-Ponytail',
-                'character/making_reboot/pl_hr_110000.ice', 'c', NULL, NULL, NULL, NULL
+                'character/making_reboot/pl_hr_110000.ice', 'c', NULL, NULL, NULL, NULL,
+                17, 18, 0, 0
             );
             INSERT INTO objects VALUES(
                 'setwear', 205990, 205990, 'N-ドレスセット', 'N-Dress Set',
-                'character/making_reboot/pl_bd_205990.ice', 'd', NULL, NULL, NULL, 100400
+                'character/making_reboot/pl_bd_205990.ice', 'd', NULL, NULL, NULL, 100400,
+                3, 4, 0, 0
             );
             """;
         command.ExecuteNonQuery();

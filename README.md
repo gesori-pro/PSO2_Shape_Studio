@@ -14,9 +14,12 @@ post-adjustments without using Blender.
 ## Features
 
 - Open PSO2 model files from `.aqp`, `.aqn`, and `.ice` sources.
-- Load character appearance files (`.fnp`, `.fhp`, `.fnpu`, and `.fhpu`) and
-  apply their body proportions and colors.
+- Load legacy race-specific character appearance files (`.fdp`, `.fnp`, `.fhp`,
+  and `.fcp`) and their unencrypted variants, then apply their body proportions
+  and colors.
 - Load and save outfit shape-adjust motions (`_sa.aqm`).
+- Adjust sole height through `body_root` Y scale in 0.01 steps and compare it
+  against a toggleable world-floor guide.
 - Edit scale, position, and rotation values with 0.01-step sliders.
 - Undo and redo shape edits with `Ctrl+Z`, `Ctrl+Y`, or `Ctrl+Shift+Z`.
 - Select a local PSO2 game folder, validate its data layout, and rebuild the

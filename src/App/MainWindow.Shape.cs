@@ -33,7 +33,9 @@ public partial class MainWindow : Window
             [
                 new FilePickerFileType(L(AppText.CharacterPickerType))
                 {
-                    Patterns = ["*.fnp", "*.fhp", "*.fnpu", "*.fhpu"],
+                    Patterns = CharacterFile.SupportedExtensions
+                        .Select(extension => $"*{extension}")
+                        .ToArray(),
                 },
             ],
         });

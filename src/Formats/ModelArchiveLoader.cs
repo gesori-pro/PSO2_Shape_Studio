@@ -1,5 +1,7 @@
 namespace Pso2ShapeStudio.Formats;
 
+using Pso2ShapeStudio.Character;
+
 /// <summary>
 /// Everything a model ICE yields in one pass. The shape-adjust entry stays
 /// raw bytes: parsing it is the rigging module's business, and keeping it
@@ -15,7 +17,9 @@ public sealed record GameModelArchive(
 
 public static class ModelArchiveLoader
 {
-    public static GameModelArchive Load(string path)
+    public static GameModelArchive Load(
+        string path,
+        Pso2ColorMapping? bodyColorMapping = null)
     {
         var archive = IceArchive.Load(path);
         var entries = archive.Entries;
@@ -37,7 +41,8 @@ public static class ModelArchiveLoader
         var models = aqpEntries.Select(entry => AqpLoader.Load(
             entry.Data,
             $"{archive.SourcePath}::{entry.Name}",
-            textures)).ToArray();
+            textures,
+            bodyColorMapping)).ToArray();
 
         var primaryStem = Path.GetFileNameWithoutExtension(aqpEntries[0].Name);
         var skeletonEntry = aqnEntries.FirstOrDefault(entry =>

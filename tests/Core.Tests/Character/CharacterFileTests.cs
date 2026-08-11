@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Text.Json;
 using Pso2ShapeStudio.Character;
 
@@ -19,6 +20,75 @@ public sealed class CharacterFileTests
 
         Assert.NotEqual(source, encrypted);
         Assert.Equal(source, decrypted);
+    }
+
+    [Theory]
+    [InlineData("character.fdp")]
+    [InlineData("character.fnp")]
+    [InlineData("character.fhp")]
+    [InlineData("character.fcp")]
+    [InlineData("character.fdpu")]
+    [InlineData("character.fnpu")]
+    [InlineData("character.fhpu")]
+    [InlineData("CHARACTER.FCPU")]
+    public void RaceSpecificCharacterExtensionsAreSupported(string path)
+    {
+        Assert.True(CharacterFile.IsSupportedPath(path));
+    }
+
+    [Theory]
+    [InlineData("character.aqm")]
+    [InlineData("character.fdp.bak")]
+    [InlineData("character")]
+    public void UnrelatedExtensionsAreNotCharacterFiles(string path)
+    {
+        Assert.False(CharacterFile.IsSupportedPath(path));
+    }
+
+    [ExternalDataFact("PSO2_SHAPE_REFERENCE_FNP")]
+    public void EncryptedRaceSpecificExtensionsLoadTheSamePayload()
+    {
+        var expected = CharacterFile.Load(FnpPath).ToDictionary();
+        foreach (var extension in new[] { ".fdp", ".fnp", ".fhp", ".fcp" })
+        {
+            var output = Path.Combine(
+                Path.GetTempPath(), $"pso2-shape-{Guid.NewGuid():N}{extension}");
+            try
+            {
+                File.Copy(FnpPath, output);
+                Assert.Equal(expected, CharacterFile.Load(output).ToDictionary());
+            }
+            finally
+            {
+                File.Delete(output);
+            }
+        }
+    }
+
+    [ExternalDataFact("PSO2_SHAPE_REFERENCE_FNP")]
+    public void UnencryptedRaceSpecificExtensionsLoadTheSamePayload()
+    {
+        var expected = CharacterFile.Load(FnpPath).ToDictionary();
+        var raw = File.ReadAllBytes(FnpPath);
+        var bodySize = BinaryPrimitives.ReadInt32LittleEndian(raw.AsSpan(4, 4));
+        var encrypted = raw.AsSpan(16, bodySize).ToArray();
+        var body = new Pso2Blowfish(CharacterFile.DeriveKey(bodySize)).decryptBlock(encrypted);
+        body.CopyTo(raw, 16);
+
+        foreach (var extension in new[] { ".fdpu", ".fnpu", ".fhpu", ".fcpu" })
+        {
+            var output = Path.Combine(
+                Path.GetTempPath(), $"pso2-shape-{Guid.NewGuid():N}{extension}");
+            try
+            {
+                File.WriteAllBytes(output, raw);
+                Assert.Equal(expected, CharacterFile.Load(output).ToDictionary());
+            }
+            finally
+            {
+                File.Delete(output);
+            }
+        }
     }
 
     [ExternalDataFact("PSO2_SHAPE_TEST_DATA", "PSO2_SHAPE_REFERENCE_FNP")]

@@ -78,6 +78,11 @@ public sealed class ShapeAdjustFile
         var adjusted = carried?.ToDictionary(pair => pair.Key, pair => pair.Value) ?? [];
         foreach (var group in ShapeSliders.Groups)
         {
+            foreach (var nodeId in group.NodeIds.Values)
+            {
+                adjusted.Remove(nodeId);
+            }
+
             var value = profile[group.Key];
             if (value.IsIdentity)
             {

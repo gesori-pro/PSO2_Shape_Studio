@@ -291,13 +291,19 @@ public partial class MainWindow : Window
         // outerwear holding the physics-driven skirt or cape, a linked
         // innerwear underneath). Loading the outfit without them shows a
         // visibly broken garment, so resolve and load them together.
-        var paths = new List<string> { selected.ResolvedPath };
-        foreach (var linked in ResolveLinkedWear(selected.Record))
+        var models = new List<(string Path, ModelCatalogRecord Record)>
         {
-            paths.Add(linked);
-        }
+            (selected.ResolvedPath, selected.Record),
+        };
+        models.AddRange(ResolveLinkedWear(selected.Record));
+        var mappings = models
+            .GroupBy(model => Path.GetFullPath(model.Path), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => ToColorMapping(group.First().Record.ColorMapping),
+                StringComparer.OrdinalIgnoreCase);
 
-        await LoadPathsAsync(paths);
+        await LoadPathsAsync(models.Select(model => model.Path), mappings);
 
         // A searched outfit should come up wearing skin, not gray flesh. If
         // neither skin set made it to the viewport (first run, or an earlier
@@ -314,14 +320,15 @@ public partial class MainWindow : Window
     /// CMX no longer has, and unresolvable files are all skipped silently -
     /// the main outfit still loads on its own.
     /// </summary>
-    private IReadOnlyList<string> ResolveLinkedWear(ModelCatalogRecord record)
+    private IReadOnlyList<(string Path, ModelCatalogRecord Record)> ResolveLinkedWear(
+        ModelCatalogRecord record)
     {
         if (_catalog is null || _dataLocator is null)
         {
             return [];
         }
 
-        var paths = new List<string>(2);
+        var paths = new List<(string Path, ModelCatalogRecord Record)>(2);
         void Add(string objectType, int? id)
         {
             if (id is not int value)
@@ -338,7 +345,7 @@ public partial class MainWindow : Window
             var resolved = _dataLocator.Resolve(linked.FileName);
             if (resolved is not null)
             {
-                paths.Add(resolved.Path);
+                paths.Add((resolved.Path, linked));
             }
         }
 
@@ -346,6 +353,13 @@ public partial class MainWindow : Window
         Add("outerwear", record.LinkedOuterId);
         return paths;
     }
+
+    private static Pso2ColorMapping ToColorMapping(ModelColorMapping mapping) =>
+        new(
+            (Pso2ColorChannel)mapping.Red,
+            (Pso2ColorChannel)mapping.Green,
+            (Pso2ColorChannel)mapping.Blue,
+            (Pso2ColorChannel)mapping.Alpha);
 
     private async Task ConfigureDataFolderAsync(string selectedPath, bool rebuild)
     {
@@ -502,6 +516,7 @@ public partial class MainWindow : Window
             _selectedSkinType1Id = settings?.SkinType1 ?? DefaultSkinType1Id;
             _selectedSkinType2Id = settings?.SkinType2 ?? DefaultSkinType2Id;
             RestoreBackground(settings?.Background);
+            RestoreFloorGuide(settings?.FloorGuide);
             if (!string.IsNullOrWhiteSpace(settings?.DataPath))
             {
                 await ConfigureDataFolderAsync(settings.DataPath, rebuild: false);

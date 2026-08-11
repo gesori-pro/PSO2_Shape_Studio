@@ -24,7 +24,8 @@ public static class AqpLoader
     public static RenderModel Load(
         ReadOnlyMemory<byte> packageData,
         string sourceName,
-        IReadOnlyDictionary<string, byte[]>? textureData = null)
+        IReadOnlyDictionary<string, byte[]>? textureData = null,
+        Pso2ColorMapping? bodyColorMapping = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
 
@@ -49,6 +50,7 @@ public static class AqpLoader
 
         var genericMaterials = model.GetUniqueMaterials(out var meshMaterialMapping);
         var decodedTextures = new Dictionary<string, RenderTexture>(StringComparer.OrdinalIgnoreCase);
+        var sourceTextureCategory = SourceTextureCategory(sourceName);
         var materials = genericMaterials.Select(material =>
         {
             var logicalTextures = material.texNames?.Select(value => value?.ToString() ?? "").ToArray() ?? [];
@@ -70,10 +72,14 @@ public static class AqpLoader
             }
 
             var availableNames = textureData?.Keys ?? [];
-            var diffuseReference = ResolveTexture(logicalTextures, logicalUvSets, availableNames, TextureSlot.Diffuse);
-            var maskReference = ResolveTexture(logicalTextures, logicalUvSets, availableNames, TextureSlot.Mask);
-            var normalReference = ResolveTexture(logicalTextures, logicalUvSets, availableNames, TextureSlot.Normal);
-            var multiReference = ResolveTexture(logicalTextures, logicalUvSets, availableNames, TextureSlot.Multi);
+            var diffuseReference = ResolveTexture(
+                logicalTextures, logicalUvSets, availableNames, TextureSlot.Diffuse, sourceTextureCategory);
+            var maskReference = ResolveTexture(
+                logicalTextures, logicalUvSets, availableNames, TextureSlot.Mask, sourceTextureCategory);
+            var normalReference = ResolveTexture(
+                logicalTextures, logicalUvSets, availableNames, TextureSlot.Normal, sourceTextureCategory);
+            var multiReference = ResolveTexture(
+                logicalTextures, logicalUvSets, availableNames, TextureSlot.Multi, sourceTextureCategory);
             var diffuse = Decode(diffuseReference?.Name);
             var mask = Decode(maskReference?.Name);
             var normal = Decode(normalReference?.Name);
@@ -89,7 +95,7 @@ public static class AqpLoader
                 mask,
                 normal,
                 multi,
-                ResolveColorMapping(logicalTextures, usesSkinTexture),
+                ResolveColorMapping(logicalTextures, usesSkinTexture, bodyColorMapping),
                 new RenderTextureUvSets(
                     diffuseReference?.UvSet ?? 0,
                     maskReference?.UvSet ?? 0,
@@ -233,7 +239,8 @@ public static class AqpLoader
             string.Equals(name, "1102", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(name, "1102p", StringComparison.OrdinalIgnoreCase)) == true ||
         logicalTextures.Any(name =>
-            name.Contains("pl_body_skin_", StringComparison.OrdinalIgnoreCase));
+            name.Contains("pl_body_skin_", StringComparison.OrdinalIgnoreCase) &&
+            !name.Contains("subnormal", StringComparison.OrdinalIgnoreCase));
 
     private static Vector4 ClampColor(Vector4 color)
     {
@@ -250,7 +257,8 @@ public static class AqpLoader
         IReadOnlyList<string> logicalTextures,
         IReadOnlyList<int> logicalUvSets,
         IEnumerable<string> availableNames,
-        TextureSlot slot)
+        TextureSlot slot,
+        string? sourceTextureCategory)
     {
         var available = availableNames.ToArray();
         var logicalIndex = -1;
@@ -280,20 +288,34 @@ public static class AqpLoader
             return new ResolvedTexture(exact, uvSet);
         }
 
-        var categories = TextureCategoryTokens(logical);
+        var categories = TextureCategoryTokens(logical).ToList();
+        // AQP material names describe their semantic layer, not necessarily
+        // the physical DDS prefix. Some setwears contain an `outer_opa`
+        // material inside pl_*_bw.aqp and expect the sibling *_bw_d/m/n/s
+        // atlas. Prefer the AQP's own wear category before the logical name;
+        // skin/face/hair materials keep their dedicated category lookup.
+        if (sourceTextureCategory is not null && IsWearTexture(logical))
+        {
+            categories.RemoveAll(value =>
+                string.Equals(value, sourceTextureCategory, StringComparison.OrdinalIgnoreCase));
+            categories.Insert(0, sourceTextureCategory);
+        }
         foreach (var suffix in SlotSuffixes(slot, logical))
         {
-            var match = available.FirstOrDefault(name =>
+            bool MatchesSuffix(string name)
             {
                 var stem = Path.GetFileNameWithoutExtension(name);
-                if (!stem.EndsWith($"_{suffix}", StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
+                return stem.EndsWith($"_{suffix}", StringComparison.OrdinalIgnoreCase);
+            }
 
-                return categories.Count == 0 || categories.Any(token =>
-                    stem.Contains($"_{token}_", StringComparison.OrdinalIgnoreCase));
-            });
+            var match = categories.Count == 0
+                ? available.FirstOrDefault(MatchesSuffix)
+                : categories
+                    .Select(category => available.FirstOrDefault(name =>
+                        MatchesSuffix(name) &&
+                        Path.GetFileNameWithoutExtension(name)
+                            .Contains($"_{category}_", StringComparison.OrdinalIgnoreCase)))
+                    .FirstOrDefault(name => name is not null);
             if (match is not null)
             {
                 return new ResolvedTexture(match, uvSet);
@@ -335,7 +357,8 @@ public static class AqpLoader
 
     private static Pso2ColorMapping ResolveColorMapping(
         IReadOnlyList<string> logicalTextures,
-        bool usesSkinTexture)
+        bool usesSkinTexture,
+        Pso2ColorMapping? bodyColorMapping)
     {
         if (usesSkinTexture)
         {
@@ -343,6 +366,12 @@ public static class AqpLoader
         }
 
         var joined = string.Join('|', logicalTextures);
+        if (bodyColorMapping is { UsesAny: true } mapping &&
+            (joined.Contains("body_base", StringComparison.OrdinalIgnoreCase) ||
+             joined.Contains("body_outer", StringComparison.OrdinalIgnoreCase)))
+        {
+            return mapping;
+        }
         if (joined.Contains("body_base", StringComparison.OrdinalIgnoreCase))
         {
             return new Pso2ColorMapping(Pso2ColorChannel.Base1, Pso2ColorChannel.Base2);
@@ -386,6 +415,28 @@ public static class AqpLoader
         if (value.Contains("ears")) return ["ea"];
         if (value.Contains("dental")) return ["de"];
         return [];
+    }
+
+    private static bool IsWearTexture(string logicalName) =>
+        logicalName.Contains("body_base", StringComparison.OrdinalIgnoreCase) ||
+        logicalName.Contains("body_outer", StringComparison.OrdinalIgnoreCase);
+
+    private static string? SourceTextureCategory(string sourceName)
+    {
+        var separator = sourceName.LastIndexOf("::", StringComparison.Ordinal);
+        var entryName = separator >= 0
+            ? sourceName[(separator + 2)..]
+            : sourceName;
+        var stem = Path.GetFileNameWithoutExtension(entryName);
+        foreach (var category in new[] { "bw", "bd", "ow", "iw" })
+        {
+            if (stem.EndsWith($"_{category}", StringComparison.OrdinalIgnoreCase))
+            {
+                return category;
+            }
+        }
+
+        return null;
     }
 
     private static T[] CopyOrFill<T>(IReadOnlyCollection<T> source, int count, T fallback)

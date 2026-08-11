@@ -5,6 +5,11 @@ using Microsoft.Data.Sqlite;
 
 namespace Pso2ShapeStudio.GameData;
 
+public readonly record struct ModelColorMapping(int Red, int Green, int Blue, int Alpha)
+{
+    public bool UsesAny => Red != 0 || Green != 0 || Blue != 0 || Alpha != 0;
+}
+
 public sealed record ModelCatalogRecord(
     string ObjectType,
     int Id,
@@ -16,7 +21,8 @@ public sealed record ModelCatalogRecord(
     string? HighQualityFileName,
     string? HighQualityHash,
     int? LinkedInnerId = null,
-    int? LinkedOuterId = null)
+    int? LinkedOuterId = null,
+    ModelColorMapping ColorMapping = default)
 {
     public string DisplayName => !string.IsNullOrWhiteSpace(NameEnglish)
         ? NameEnglish
@@ -33,7 +39,7 @@ public sealed record ModelCatalogBuildResult(
 
 public sealed class ModelCatalog
 {
-    private const int SchemaVersion = 3;
+    private const int SchemaVersion = 4;
 
     /// <summary>
     /// The only object types the search UI offers. Everything else stays in
@@ -126,7 +132,8 @@ public sealed class ModelCatalog
         command.CommandText = $"""
             SELECT object_type, id, adjusted_id, name_jp, name_en,
                    file_name, hash, ex_file_name, ex_hash,
-                   linked_inner_id, linked_outer_id
+                   linked_inner_id, linked_outer_id,
+                   color_red, color_green, color_blue, color_alpha
             FROM objects
             {(predicates.Count == 0 ? "" : "WHERE " + string.Join(" AND ", predicates))}
             ORDER BY CASE WHEN CAST(id AS TEXT) = $query THEN 0 ELSE 1 END,
@@ -151,7 +158,12 @@ public sealed class ModelCatalog
                 reader.IsDBNull(7) ? null : reader.GetString(7),
                 reader.IsDBNull(8) ? null : reader.GetString(8),
                 reader.IsDBNull(9) ? null : reader.GetInt32(9),
-                reader.IsDBNull(10) ? null : reader.GetInt32(10)));
+                reader.IsDBNull(10) ? null : reader.GetInt32(10),
+                new ModelColorMapping(
+                    reader.GetInt32(11),
+                    reader.GetInt32(12),
+                    reader.GetInt32(13),
+                    reader.GetInt32(14))));
         }
 
         return result;
@@ -165,7 +177,8 @@ public sealed class ModelCatalog
         command.CommandText = """
             SELECT object_type, id, adjusted_id, name_jp, name_en,
                    file_name, hash, ex_file_name, ex_hash,
-                   linked_inner_id, linked_outer_id
+                   linked_inner_id, linked_outer_id,
+                   color_red, color_green, color_blue, color_alpha
             FROM objects
             WHERE object_type = $type
             ORDER BY id
@@ -187,7 +200,12 @@ public sealed class ModelCatalog
                 reader.IsDBNull(7) ? null : reader.GetString(7),
                 reader.IsDBNull(8) ? null : reader.GetString(8),
                 reader.IsDBNull(9) ? null : reader.GetInt32(9),
-                reader.IsDBNull(10) ? null : reader.GetInt32(10)));
+                reader.IsDBNull(10) ? null : reader.GetInt32(10),
+                new ModelColorMapping(
+                    reader.GetInt32(11),
+                    reader.GetInt32(12),
+                    reader.GetInt32(13),
+                    reader.GetInt32(14))));
         }
 
         return result;
@@ -202,7 +220,8 @@ public sealed class ModelCatalog
         command.CommandText = """
             SELECT object_type, id, adjusted_id, name_jp, name_en,
                    file_name, hash, ex_file_name, ex_hash,
-                   linked_inner_id, linked_outer_id
+                   linked_inner_id, linked_outer_id,
+                   color_red, color_green, color_blue, color_alpha
             FROM objects
             WHERE object_type = $type AND id = $id
             """;
@@ -225,7 +244,12 @@ public sealed class ModelCatalog
             reader.IsDBNull(7) ? null : reader.GetString(7),
             reader.IsDBNull(8) ? null : reader.GetString(8),
             reader.IsDBNull(9) ? null : reader.GetInt32(9),
-            reader.IsDBNull(10) ? null : reader.GetInt32(10));
+            reader.IsDBNull(10) ? null : reader.GetInt32(10),
+            new ModelColorMapping(
+                reader.GetInt32(11),
+                reader.GetInt32(12),
+                reader.GetInt32(13),
+                reader.GetInt32(14)));
     }
 
     public static ModelCatalogBuildResult BuildFromGame(
@@ -314,7 +338,8 @@ public sealed class ModelCatalog
                 "basewear", "bw", pair.Key, basewearNames,
                 AdjustedId(pair.Key, cmx.baseWearIdLink),
                 OptionalId(pair.Value.body2.linkedInnerId),
-                OptionalId(pair.Value.body2.linkedOuterId));
+                OptionalId(pair.Value.body2.linkedOuterId),
+                ToModelColorMapping(pair.Value.bodyMaskColorMapping));
         }
         foreach (var pair in cmx.costumeDict)
         {
@@ -322,7 +347,8 @@ public sealed class ModelCatalog
                 ClassifyCostumeId(pair.Key), "bd", pair.Key, costumeNames,
                 AdjustedId(pair.Key, cmx.costumeIdLink),
                 OptionalId(pair.Value.body2.linkedInnerId),
-                OptionalId(pair.Value.body2.linkedOuterId));
+                OptionalId(pair.Value.body2.linkedOuterId),
+                ToModelColorMapping(pair.Value.bodyMaskColorMapping));
         }
         foreach (var record in CreateRecords(
                      "bodypaint", "b1", cmx.bodyPaintDict.Keys,
@@ -363,9 +389,16 @@ public sealed class ModelCatalog
         foreach (var record in CreateRecords(
                      "innerwear", "iw", cmx.innerWearDict.Keys,
                      ReadNames(partsText, "innerwear"), cmx.innerWearIdLink)) yield return record;
-        foreach (var record in CreateRecords(
-                     "outerwear", "ow", cmx.outerDict.Keys,
-                     ReadNames(partsText, "costume"), cmx.outerWearIdLink)) yield return record;
+        var outerwearNames = ReadNames(partsText, "costume");
+        foreach (var pair in cmx.outerDict)
+        {
+            yield return CreateRecord(
+                "outerwear", "ow", pair.Key, outerwearNames,
+                AdjustedId(pair.Key, cmx.outerWearIdLink),
+                OptionalId(pair.Value.body2.linkedInnerId),
+                OptionalId(pair.Value.body2.linkedOuterId),
+                ToModelColorMapping(pair.Value.bodyMaskColorMapping));
+        }
         foreach (var record in CreateRecords(
                      "skin", "sk", cmx.ngsSkinDict.Keys,
                      ReadNames(partsText, "skin"), null)) yield return record;
@@ -397,7 +430,8 @@ public sealed class ModelCatalog
         IReadOnlyDictionary<int, (string Japanese, string English)> names,
         int adjustedId,
         int? linkedInnerId = null,
-        int? linkedOuterId = null)
+        int? linkedOuterId = null,
+        ModelColorMapping colorMapping = default)
     {
         var prefix = id >= 100000 ? "character/making_reboot/pl_" : "character/making/pl_";
         var fileName = $"{prefix}{tag}_{adjustedId:00000}.ice";
@@ -421,11 +455,19 @@ public sealed class ModelCatalog
             highQuality,
             highQuality is null ? null : Pso2DataLocator.ComputeHash(highQuality),
             linkedInnerId,
-            linkedOuterId);
+            linkedOuterId,
+            colorMapping);
     }
 
     /// <summary>CMX stores "no link" as -1 (occasionally 0).</summary>
     private static int? OptionalId(int value) => value > 0 ? value : null;
+
+    private static ModelColorMapping ToModelColorMapping(BODYMaskColorMapping mapping) =>
+        new(
+            (int)mapping.redIndex,
+            (int)mapping.greenIndex,
+            (int)mapping.blueIndex,
+            (int)mapping.alphaIndex);
 
     /// <summary>
     /// The CMX costume dictionary mixes classic full outfits with cast
@@ -546,6 +588,10 @@ public sealed class ModelCatalog
                     ex_hash TEXT,
                     linked_inner_id INTEGER,
                     linked_outer_id INTEGER,
+                    color_red INTEGER NOT NULL,
+                    color_green INTEGER NOT NULL,
+                    color_blue INTEGER NOT NULL,
+                    color_alpha INTEGER NOT NULL,
                     PRIMARY KEY(object_type, id)
                 );
                 CREATE INDEX objects_name_jp ON objects(name_jp);
@@ -563,7 +609,7 @@ public sealed class ModelCatalog
         insert.CommandText = """
             INSERT INTO objects VALUES(
                 $type, $id, $adjusted, $jp, $en, $file, $hash, $exFile, $exHash,
-                $linkedInner, $linkedOuter)
+                $linkedInner, $linkedOuter, $colorRed, $colorGreen, $colorBlue, $colorAlpha)
             """;
         var type = insert.Parameters.Add("$type", SqliteType.Text);
         var id = insert.Parameters.Add("$id", SqliteType.Integer);
@@ -576,6 +622,10 @@ public sealed class ModelCatalog
         var exHash = insert.Parameters.Add("$exHash", SqliteType.Text);
         var linkedInner = insert.Parameters.Add("$linkedInner", SqliteType.Integer);
         var linkedOuter = insert.Parameters.Add("$linkedOuter", SqliteType.Integer);
+        var colorRed = insert.Parameters.Add("$colorRed", SqliteType.Integer);
+        var colorGreen = insert.Parameters.Add("$colorGreen", SqliteType.Integer);
+        var colorBlue = insert.Parameters.Add("$colorBlue", SqliteType.Integer);
+        var colorAlpha = insert.Parameters.Add("$colorAlpha", SqliteType.Integer);
         foreach (var record in records)
         {
             type.Value = record.ObjectType;
@@ -589,6 +639,10 @@ public sealed class ModelCatalog
             exHash.Value = (object?)record.HighQualityHash ?? DBNull.Value;
             linkedInner.Value = (object?)record.LinkedInnerId ?? DBNull.Value;
             linkedOuter.Value = (object?)record.LinkedOuterId ?? DBNull.Value;
+            colorRed.Value = record.ColorMapping.Red;
+            colorGreen.Value = record.ColorMapping.Green;
+            colorBlue.Value = record.ColorMapping.Blue;
+            colorAlpha.Value = record.ColorMapping.Alpha;
             insert.ExecuteNonQuery();
         }
 

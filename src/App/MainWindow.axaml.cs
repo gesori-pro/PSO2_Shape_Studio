@@ -102,6 +102,18 @@ public partial class MainWindow : Window
                 // A failed write only loses the preference for next launch.
             }
         };
+        FloorGuideCheckBox.Click += async (_, _) =>
+        {
+            ApplyFloorGuideSelection();
+            try
+            {
+                await SaveSettingsAsync();
+            }
+            catch (IOException)
+            {
+                // A failed write only loses the preference for next launch.
+            }
+        };
         SkinType1ComboBox.SelectionChanged += SkinType1Changed;
         SkinType2ComboBox.SelectionChanged += SkinType2Changed;
         Viewport.SetLanguage(_language);
@@ -358,6 +370,8 @@ public partial class MainWindow : Window
         CameraHelpText.Text = L(AppText.CameraHelp);
         ToolTip.SetTip(LanguageComboBox, L(AppText.LanguageTip));
         ToolTip.SetTip(BackgroundComboBox, L(AppText.BackgroundTip));
+        FloorGuideCheckBox.Content = L(AppText.FloorGuide);
+        ToolTip.SetTip(FloorGuideCheckBox, L(AppText.FloorGuideTip));
 
         foreach (var item in BackgroundComboBox.Items.OfType<ComboBoxItem>())
         {
@@ -448,6 +462,15 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ApplyFloorGuideSelection() =>
+        Viewport.SetFloorGuideVisible(FloorGuideCheckBox.IsChecked != false);
+
+    private void RestoreFloorGuide(bool? visible)
+    {
+        FloorGuideCheckBox.IsChecked = visible ?? true;
+        ApplyFloorGuideSelection();
+    }
+
     private async Task SaveSettingsAsync(string? dataPath = null)
     {
         Directory.CreateDirectory(AppDataDirectory);
@@ -456,7 +479,8 @@ public partial class MainWindow : Window
             AppLocalizer.LanguageCode(_language),
             _selectedSkinType1Id,
             _selectedSkinType2Id,
-            SelectedBackgroundTag());
+            SelectedBackgroundTag(),
+            FloorGuideCheckBox.IsChecked != false);
         await File.WriteAllTextAsync(SettingsPath, JsonSerializer.Serialize(settings));
     }
 
@@ -579,7 +603,8 @@ public partial class MainWindow : Window
         string Language = "en",
         int SkinType1 = DefaultSkinType1Id,
         int SkinType2 = DefaultSkinType2Id,
-        string Background = "0E1114");
+        string Background = "0E1114",
+        bool? FloorGuide = null);
 
     private sealed record ShapeHistoryState(ShapeProfile Profile, ShapeAdjustFile? ShapeAdjust);
 }

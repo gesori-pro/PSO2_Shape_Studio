@@ -38,7 +38,11 @@ public sealed class ModelViewport : OpenGlControlBase
     private GL? _gl;
     private uint _program;
     private uint _boneBuffer;
+    private uint _floorVertexArray;
+    private uint _floorVertexBuffer;
+    private uint _floorVertexCount;
     private int _viewProjectionLocation = -1;
+    private int _useSkinningLocation = -1;
     private int _lightDirectionLocation = -1;
     private int _cameraPositionLocation = -1;
     private int _baseColorLocation = -1;
@@ -64,6 +68,7 @@ public sealed class ModelViewport : OpenGlControlBase
     private int _blendModeLocation = -1;
 
     private Vector3 _background = new(0.055f, 0.065f, 0.08f);
+    private bool _floorGuideVisible = true;
     private Vector3 _focus = DefaultFocus;
     private float _yaw = DefaultYaw;
     private float _pitch = DefaultPitch;
@@ -90,6 +95,12 @@ public sealed class ModelViewport : OpenGlControlBase
     public void SetBackgroundColor(Vector3 color)
     {
         _background = Vector3.Clamp(color, Vector3.Zero, Vector3.One);
+        RequestNextFrameRendering();
+    }
+
+    public void SetFloorGuideVisible(bool visible)
+    {
+        _floorGuideVisible = visible;
         RequestNextFrameRendering();
     }
 
@@ -159,6 +170,7 @@ public sealed class ModelViewport : OpenGlControlBase
             _gl = GL.GetApi(gl.GetProcAddress);
             _program = CreateProgram(_gl, VertexShader, FragmentShader);
             _viewProjectionLocation = _gl.GetUniformLocation(_program, "uViewProjection");
+            _useSkinningLocation = _gl.GetUniformLocation(_program, "uUseSkinning");
             _lightDirectionLocation = _gl.GetUniformLocation(_program, "uLightDirection");
             _cameraPositionLocation = _gl.GetUniformLocation(_program, "uCameraPosition");
             _baseColorLocation = _gl.GetUniformLocation(_program, "uBaseColor");
@@ -193,6 +205,7 @@ public sealed class ModelViewport : OpenGlControlBase
                 null,
                 BufferUsageARB.DynamicDraw);
             _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, _boneBuffer);
+            CreateFloorGuide(_gl);
 
             _gl.Enable(EnableCap.DepthTest);
             _gl.Disable(EnableCap.Blend);
@@ -217,6 +230,8 @@ public sealed class ModelViewport : OpenGlControlBase
             {
                 _gl.DeleteBuffer(_boneBuffer);
             }
+
+            DeleteFloorGuide(_gl);
 
             if (_program != 0)
             {
@@ -263,6 +278,10 @@ public sealed class ModelViewport : OpenGlControlBase
             _gl.Uniform1(_normalTextureLocation, 2);
             _gl.Uniform1(_multiTextureLocation, 3);
             _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, _boneBuffer);
+
+            DrawFloorGuide(_gl);
+            _gl.Uniform1(_useSkinningLocation, 1);
+            _gl.Uniform1(_blendModeLocation, (int)MaterialBlendMode.Opaque);
 
             // Opaque/cutout materials write depth without blending. Transparent
             // and additive materials follow far-to-near without touching depth.
@@ -641,21 +660,7 @@ public sealed class ModelViewport : OpenGlControlBase
                 BufferUsageARB.StaticDraw);
         }
 
-        var stride = (uint)Marshal.SizeOf<GpuVertex>();
-        api.EnableVertexAttribArray(0);
-        api.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, (void*)0);
-        api.EnableVertexAttribArray(1);
-        api.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, (void*)12);
-        api.EnableVertexAttribArray(2);
-        api.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, stride, (void*)24);
-        api.EnableVertexAttribArray(3);
-        api.VertexAttribPointer(3, 2, VertexAttribPointerType.Float, false, stride, (void*)32);
-        api.EnableVertexAttribArray(4);
-        api.VertexAttribPointer(4, 2, VertexAttribPointerType.Float, false, stride, (void*)40);
-        api.EnableVertexAttribArray(5);
-        api.VertexAttribPointer(5, 4, VertexAttribPointerType.Float, false, stride, (void*)48);
-        api.EnableVertexAttribArray(6);
-        api.VertexAttribIPointer(6, 4, VertexAttribIType.UnsignedByte, stride, (void*)64);
+        ConfigureVertexAttributes(api);
         api.BindVertexArray(0);
 
         var texture = textures.Diffuse is null
@@ -695,6 +700,95 @@ public sealed class ModelViewport : OpenGlControlBase
             material.TextureUvSets,
             material.BlendMode,
             MeshCenter(mesh));
+    }
+
+    private unsafe void CreateFloorGuide(GL api)
+    {
+        const int halfLineCount = 10;
+        const float spacing = 0.25f;
+        const float extent = halfLineCount * spacing;
+        var vertices = new List<GpuVertex>((halfLineCount * 2 + 1) * 4);
+        for (var line = -halfLineCount; line <= halfLineCount; line++)
+        {
+            var offset = line * spacing;
+            Add(new Vector3(-extent, 0f, offset));
+            Add(new Vector3(extent, 0f, offset));
+            Add(new Vector3(offset, 0f, -extent));
+            Add(new Vector3(offset, 0f, extent));
+        }
+
+        _floorVertexCount = (uint)vertices.Count;
+        _floorVertexArray = api.GenVertexArray();
+        _floorVertexBuffer = api.GenBuffer();
+        api.BindVertexArray(_floorVertexArray);
+        api.BindBuffer(BufferTargetARB.ArrayBuffer, _floorVertexBuffer);
+        var vertexArray = vertices.ToArray();
+        fixed (GpuVertex* pointer = vertexArray)
+        {
+            api.BufferData(
+                BufferTargetARB.ArrayBuffer,
+                (nuint)(vertexArray.Length * Marshal.SizeOf<GpuVertex>()),
+                pointer,
+                BufferUsageARB.StaticDraw);
+        }
+
+        ConfigureVertexAttributes(api);
+        api.BindVertexArray(0);
+
+        void Add(Vector3 position) => vertices.Add(new GpuVertex(
+            position,
+            Vector3.UnitY,
+            Vector2.Zero,
+            Vector2.Zero,
+            Vector2.Zero,
+            new Vector4(1f, 0f, 0f, 0f),
+            new Byte4(0, 0, 0, 0)));
+    }
+
+    private void DrawFloorGuide(GL api)
+    {
+        if (!_floorGuideVisible || _floorVertexArray == 0 || _floorVertexCount == 0)
+        {
+            return;
+        }
+
+        api.Uniform1(_useSkinningLocation, 0);
+        api.Uniform4(_baseColorLocation, 0.28f, 0.32f, 0.38f, 0.42f);
+        api.Uniform1(_hasTextureLocation, 0);
+        api.Uniform1(_hasMaskLocation, 0);
+        api.Uniform1(_hasNormalLocation, 0);
+        api.Uniform1(_hasMultiLocation, 0);
+        api.Uniform4(_colorChannelsLocation, 0f, 0f, 0f, 0f);
+        api.Uniform1(_multiplyColorLocation, 0);
+        api.Uniform1(_alphaCutoffLocation, 0f);
+        api.Uniform1(_blendModeLocation, (int)MaterialBlendMode.AlphaBlend);
+        api.DepthMask(false);
+        api.Enable(EnableCap.Blend);
+        api.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        api.BindVertexArray(_floorVertexArray);
+        api.DrawArrays(PrimitiveType.Lines, 0, _floorVertexCount);
+        api.BindVertexArray(0);
+        api.Disable(EnableCap.Blend);
+        api.DepthMask(true);
+    }
+
+    private static unsafe void ConfigureVertexAttributes(GL api)
+    {
+        var stride = (uint)Marshal.SizeOf<GpuVertex>();
+        api.EnableVertexAttribArray(0);
+        api.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, (void*)0);
+        api.EnableVertexAttribArray(1);
+        api.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, (void*)12);
+        api.EnableVertexAttribArray(2);
+        api.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, stride, (void*)24);
+        api.EnableVertexAttribArray(3);
+        api.VertexAttribPointer(3, 2, VertexAttribPointerType.Float, false, stride, (void*)32);
+        api.EnableVertexAttribArray(4);
+        api.VertexAttribPointer(4, 2, VertexAttribPointerType.Float, false, stride, (void*)40);
+        api.EnableVertexAttribArray(5);
+        api.VertexAttribPointer(5, 4, VertexAttribPointerType.Float, false, stride, (void*)48);
+        api.EnableVertexAttribArray(6);
+        api.VertexAttribIPointer(6, 4, VertexAttribIType.UnsignedByte, stride, (void*)64);
     }
 
     private static Vector3 MeshCenter(RenderMesh mesh)
@@ -790,6 +884,23 @@ public sealed class ModelViewport : OpenGlControlBase
             api.DeleteTexture(texture);
         }
         _gpuTextures.Clear();
+    }
+
+    private void DeleteFloorGuide(GL api)
+    {
+        if (_floorVertexArray != 0)
+        {
+            api.DeleteVertexArray(_floorVertexArray);
+            _floorVertexArray = 0;
+        }
+
+        if (_floorVertexBuffer != 0)
+        {
+            api.DeleteBuffer(_floorVertexBuffer);
+            _floorVertexBuffer = 0;
+        }
+
+        _floorVertexCount = 0;
     }
 
     private Matrix4x4 BuildViewProjection(float aspect)
@@ -923,6 +1034,7 @@ public sealed class ModelViewport : OpenGlControlBase
         };
 
         uniform mat4 uViewProjection;
+        uniform bool uUseSkinning;
         out vec3 vNormal;
         out vec3 vPosition;
         out vec2 vUv1;
@@ -931,11 +1043,15 @@ public sealed class ModelViewport : OpenGlControlBase
 
         void main()
         {
-            mat4 skin =
-                aWeights.x * uBones[aBones.x] +
-                aWeights.y * uBones[aBones.y] +
-                aWeights.z * uBones[aBones.z] +
-                aWeights.w * uBones[aBones.w];
+            mat4 skin = mat4(1.0);
+            if (uUseSkinning)
+            {
+                skin =
+                    aWeights.x * uBones[aBones.x] +
+                    aWeights.y * uBones[aBones.y] +
+                    aWeights.z * uBones[aBones.z] +
+                    aWeights.w * uBones[aBones.w];
+            }
             vec4 position = skin * vec4(aPosition, 1.0);
             vNormal = normalize(mat3(skin) * aNormal);
             vPosition = position.xyz;

@@ -18,6 +18,18 @@ public sealed class CharacterFile
 {
     public const uint CharacterBlowfishKey = 0x9A46D7C8;
 
+    public static IReadOnlyList<string> SupportedExtensions { get; } = Array.AsReadOnly(
+    [
+        ".fdp",
+        ".fnp",
+        ".fhp",
+        ".fcp",
+        ".fdpu",
+        ".fnpu",
+        ".fhpu",
+        ".fcpu",
+    ]);
+
     private readonly byte[] _body;
     private readonly IReadOnlyDictionary<string, CharacterField> _layout;
 
@@ -41,6 +53,9 @@ public sealed class CharacterFile
     }
 
     public bool Contains(string field) => _layout.ContainsKey(field);
+
+    public static bool IsSupportedPath(string path) =>
+        SupportedExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
     public static CharacterFile Load(string path)
     {
