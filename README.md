@@ -7,9 +7,8 @@ PSO2:NGS character body shapes with outfit shape-adjust AQM files (`_sa.aqm`).
 It provides a model preview and sliders for applying, editing, and saving those
 post-adjustments without using Blender.
 
-> **Current version:** 1.0.1. Core model loading, character shaping, texture
-> lookup, and shape-adjust workflows are implemented, while rendering and format
-> coverage continue to be refined.
+> **Current version:** [1.0.2](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.0.2).
+> Download the latest self-contained Windows x64 build from the release page.
 
 ## Features
 
