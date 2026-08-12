@@ -7,7 +7,7 @@ PSO2:NGS character body shapes with outfit shape-adjust AQM files (`_sa.aqm`).
 It provides a model preview and sliders for applying, editing, and saving those
 post-adjustments without using Blender.
 
-> **Current version:** [1.0.3](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.0.3).
+> **Current version:** [1.0.4](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.0.4).
 > Download the latest self-contained Windows x64 build from the release page.
 
 ## Features
@@ -18,15 +18,19 @@ post-adjustments without using Blender.
   and colors.
 - Load and save outfit shape-adjust motions (`_sa.aqm`).
 - Adjust sole height through `body_root` Y scale from 0.500 to 1.200 in 0.001
-  steps and compare it against a toggleable world-floor guide.
-- Edit scale, position, and rotation values with 0.01-step sliders.
+  steps and compare it against a toggleable floor grid with a solid translucent
+  surface that reveals intersections below world Y=0.
+- Edit scale, position, and rotation with sliders or direct numeric input. Use
+  the mouse wheel over a numeric field for fine adjustments; position uses
+  0.001 steps, and rotation sliders snap exactly to zero near their center.
 - Undo and redo shape edits with `Ctrl+Z`, `Ctrl+Y`, or `Ctrl+Shift+Z`.
 - Use the Options window to configure the game-data folder and default main/sub
   skin colors, and to show or hide the built-in shape groups.
 - After loading a model with an AQN skeleton, add editable bones as L/R pairs or
-  single-bone groups selected from an alphabetically sorted list.
-- Resize the sidebar and the built-in/custom bone sections by dragging their
-  dividers. The sidebar width is restored on the next launch.
+  single-bone groups selected from an alphabetically sorted list. Built-in and
+  added groups are shown together in one scrollable list.
+- Resize the sidebar by dragging its divider. The sidebar width is restored on
+  the next launch, and its scrolling area keeps the file buttons accessible.
 - Select a local PSO2 game folder, validate its data layout, and rebuild the
   model-search cache.
 - Search wearable models by name, ID, file name, or MD5 and filter the results
@@ -55,8 +59,9 @@ Extracted model files can be opened directly without configuring a game folder.
 3. Refresh the cache and search for a wearable model, or open extracted model
    files directly.
 4. Optionally load a character file or an existing `_sa.aqm` adjustment.
-5. Edit the available S/P/R sliders. The Options window can hide built-in groups
-   or add bones from the loaded model. Use undo or reset whenever needed.
+5. Edit the available S/P/R sliders or enter values directly. The Options window
+   can hide built-in groups or add bones from the loaded model. Use undo or reset
+   whenever needed.
 6. Save the resulting shape adjustment as an `_sa.aqm` file.
 
 ## Camera controls

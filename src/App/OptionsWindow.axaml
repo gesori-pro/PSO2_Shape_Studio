@@ -42,15 +42,23 @@
       </TabItem>
 
       <TabItem x:Name="BonesTab" Header="Editable Bones">
-        <Grid Margin="12" RowDefinitions="Auto,2*,6,3*" RowSpacing="8">
+        <Grid Margin="12" RowDefinitions="Auto,Auto,*" RowSpacing="8">
           <TextBlock x:Name="BoneHelpText" TextWrapping="Wrap"
                      Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" />
-          <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="6" MinHeight="110">
-            <TextBlock x:Name="BuiltInGroupsLabel" Text="Built-in groups"
-                       FontWeight="SemiBold" />
-            <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorderBrush}"
-                    BorderThickness="1" CornerRadius="5" Padding="6">
-              <ScrollViewer>
+          <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <TextBlock x:Name="SkeletonStatusText" FontSize="10"
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="1" x:Name="AddPairButton" Content="Add L/R pair" />
+            <Button Grid.Column="2" x:Name="AddSingleButton" Content="Add single bone" />
+          </Grid>
+
+          <Border Grid.Row="2" BorderBrush="{DynamicResource PanelBorderBrush}"
+                  BorderThickness="1" CornerRadius="5" Padding="6">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          AllowAutoHide="False">
+              <StackPanel Spacing="2">
                 <ItemsControl ItemsSource="{Binding BuiltInGroups}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:BuiltInBoneGroupOption">
@@ -63,36 +71,7 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
-              </ScrollViewer>
-            </Border>
-          </Grid>
 
-          <GridSplitter Grid.Row="2" ResizeDirection="Rows"
-                        ResizeBehavior="PreviousAndNext"
-                        Background="{DynamicResource PanelBorderBrush}"
-                        Cursor="SizeNorthSouth" />
-
-          <Grid Grid.Row="3" RowDefinitions="Auto,Auto,*" RowSpacing="6" MinHeight="130">
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-              <StackPanel>
-                <TextBlock x:Name="CustomGroupsLabel" Text="Custom groups"
-                           FontWeight="SemiBold" />
-                <TextBlock x:Name="SkeletonStatusText" FontSize="10"
-                           Foreground="{DynamicResource SecondaryTextBrush}" />
-              </StackPanel>
-              <Button Grid.Column="1" x:Name="AddPairButton" Content="Add L/R pair" />
-              <Button Grid.Column="2" x:Name="AddSingleButton" Content="Add single bone" />
-            </Grid>
-
-            <Grid Grid.Row="1" ColumnDefinitions="90,160,*,70" ColumnSpacing="6">
-              <TextBlock x:Name="KindHeader" />
-              <TextBlock Grid.Column="1" x:Name="GroupNameHeader" />
-              <TextBlock Grid.Column="2" x:Name="BoneSelectionHeader" />
-            </Grid>
-
-            <Border Grid.Row="2" BorderBrush="{DynamicResource PanelBorderBrush}"
-                    BorderThickness="1" CornerRadius="5" Padding="6">
-              <ScrollViewer>
                 <ItemsControl ItemsSource="{Binding CustomGroups}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:CustomBoneGroupOption">
@@ -113,9 +92,9 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
-              </ScrollViewer>
-            </Border>
-          </Grid>
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
         </Grid>
       </TabItem>
     </TabControl>

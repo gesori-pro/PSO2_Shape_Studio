@@ -104,8 +104,6 @@ public partial class OptionsWindow : Window
         SubSkinColorLabel.Text = L(AppText.SubSkinColor);
         HexHelpText.Text = L(AppText.HexColorHelp);
         BoneHelpText.Text = L(AppText.BoneEditorHelp);
-        BuiltInGroupsLabel.Text = L(AppText.BuiltInGroups);
-        CustomGroupsLabel.Text = L(AppText.CustomGroups);
         SkeletonStatusText.Text = _boneNames.Count == 0
             ? L(AppText.ModelRequiredForBone)
             : L(AppText.BonesCount, _boneNames.Count);
@@ -113,9 +111,6 @@ public partial class OptionsWindow : Window
         AddSingleButton.Content = L(AppText.AddSingle);
         AddPairButton.IsEnabled = _pairBoneOptions.Count > 0;
         AddSingleButton.IsEnabled = _singleBoneOptions.Count > 0;
-        KindHeader.Text = L(AppText.Kind);
-        GroupNameHeader.Text = L(AppText.GroupName);
-        BoneSelectionHeader.Text = L(AppText.BoneName);
         CancelButton.Content = L(AppText.Cancel);
         SaveButton.Content = L(AppText.Save);
     }
