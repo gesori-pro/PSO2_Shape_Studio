@@ -170,7 +170,7 @@
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                     <StackPanel Margin="4,5,2,8" Spacing="4">
                       <TextBlock Text="{Binding ScaleLabel}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
-                      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,82"
+                      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,140"
                             ColumnSpacing="6" RowSpacing="2">
                         <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
                                    IsVisible="{Binding SupportsScaleX}" />
@@ -206,7 +206,7 @@
                       <TextBlock Text="{Binding PositionLabel}" Margin="0,3,0,0" FontSize="11"
                                  Foreground="{DynamicResource SecondaryTextBrush}"
                                  IsVisible="{Binding SupportsPosition}" />
-                      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,82"
+                      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,140"
                             ColumnSpacing="6" RowSpacing="2" IsVisible="{Binding SupportsPosition}">
                         <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
                         <Slider Grid.Column="1" Value="{Binding PositionX, Mode=TwoWay}"
@@ -235,7 +235,7 @@
 
                       <TextBlock Text="{Binding RotationLabel}" Margin="0,3,0,0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"
                                  IsVisible="{Binding ShowsRotation}" IsEnabled="{Binding SupportsRotation}" />
-                      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,82"
+                      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,140"
                             ColumnSpacing="6" RowSpacing="2" IsVisible="{Binding ShowsRotation}"
                             IsEnabled="{Binding SupportsRotation}">
                         <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />

@@ -19,6 +19,11 @@ public sealed class ZeroSnapSlider : Slider
 
     public double ZeroSnapThreshold { get; set; } = 1.0;
 
+    // Avalonia themes are keyed by the concrete control type. Without this,
+    // the subclass keeps its layout slot and value behavior but receives no
+    // Slider template, so the rotation track and thumb are invisible.
+    protected override Type StyleKeyOverride => typeof(Slider);
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         _pointerAdjusting = true;
