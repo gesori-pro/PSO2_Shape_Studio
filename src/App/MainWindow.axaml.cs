@@ -120,6 +120,9 @@ public partial class MainWindow : Window
                 // A failed write only loses the preference for next launch.
             }
         };
+        BasewearOrnament1CheckBox.Click += (_, _) => ApplyOrnamentVisibility();
+        BasewearOrnament2CheckBox.Click += (_, _) => ApplyOrnamentVisibility();
+        OuterwearOrnamentCheckBox.Click += (_, _) => ApplyOrnamentVisibility();
         MainSidebarSplitter.DragCompleted += async (_, _) =>
         {
             try
@@ -402,6 +405,11 @@ public partial class MainWindow : Window
         ToolTip.SetTip(BackgroundComboBox, L(AppText.BackgroundTip));
         FloorGuideCheckBox.Content = L(AppText.FloorGuide);
         ToolTip.SetTip(FloorGuideCheckBox, L(AppText.FloorGuideTip));
+        OrnamentsExpander.Header = L(AppText.Ornaments);
+        ToolTip.SetTip(OrnamentsExpander, L(AppText.OrnamentsTip));
+        BasewearOrnament1CheckBox.Content = L(AppText.BasewearOrnament1);
+        BasewearOrnament2CheckBox.Content = L(AppText.BasewearOrnament2);
+        OuterwearOrnamentCheckBox.Content = L(AppText.OuterwearOrnament);
         OptionsButton.Content = L(AppText.Options);
 
         foreach (var item in BackgroundComboBox.Items.OfType<ComboBoxItem>())
@@ -500,6 +508,27 @@ public partial class MainWindow : Window
     {
         FloorGuideCheckBox.IsChecked = visible ?? true;
         ApplyFloorGuideSelection();
+    }
+
+    private void ApplyOrnamentVisibility() => Viewport.SetOrnamentVisibility(
+        BasewearOrnament1CheckBox.IsChecked != false,
+        BasewearOrnament2CheckBox.IsChecked != false,
+        OuterwearOrnamentCheckBox.IsChecked != false);
+
+    private void RefreshOrnamentControls()
+    {
+        var parts = Models
+            .SelectMany(entry => entry.Model.Meshes)
+            .Select(mesh => mesh.Part)
+            .ToHashSet();
+        BasewearOrnament1CheckBox.IsVisible = parts.Contains(Pso2MeshPart.BasewearOrnament1);
+        BasewearOrnament2CheckBox.IsVisible = parts.Contains(Pso2MeshPart.BasewearOrnament2);
+        OuterwearOrnamentCheckBox.IsVisible = parts.Contains(Pso2MeshPart.OuterwearOrnament);
+        OrnamentsExpander.IsVisible =
+            BasewearOrnament1CheckBox.IsVisible ||
+            BasewearOrnament2CheckBox.IsVisible ||
+            OuterwearOrnamentCheckBox.IsVisible;
+        ApplyOrnamentVisibility();
     }
 
     private async Task SaveSettingsAsync(string? dataPath = null)

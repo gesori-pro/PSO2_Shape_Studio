@@ -17,6 +17,29 @@ public readonly record struct Byte4(byte X, byte Y, byte Z, byte W)
     };
 }
 
+/// <summary>
+/// PSO2's per-mesh part id (<c>MESH.baseMeshDummyId</c>). NGS uses the
+/// ornament values to decide which geometry the character creator toggles.
+/// </summary>
+public enum Pso2MeshPart
+{
+    Unclassified = -1,
+    Costume = 0,
+    BreastNeck = 1,
+    Front = 2,
+    BasewearOrnament1 = 3,
+    Back = 4,
+    Shoulder = 5,
+    Forearm = 6,
+    Legs = 7,
+    BasewearOrnament2 = 8,
+    HeadOrnament = 9,
+    CastBodyOrnament = 10,
+    CastLegsOrnament = 11,
+    CastArmsOrnament = 12,
+    OuterwearOrnament = 13,
+}
+
 public sealed record RenderMesh(
     Vector3[] Positions,
     Vector3[] Normals,
@@ -28,7 +51,8 @@ public sealed record RenderMesh(
     string Name,
     int MaterialIndex,
     Vector2[]? Uv2 = null,
-    Vector2[]? Uv3 = null)
+    Vector2[]? Uv3 = null,
+    Pso2MeshPart Part = Pso2MeshPart.Costume)
 {
     public int VertexCount => Positions.Length;
     public int TriangleCount => Triangles.Length / 3;

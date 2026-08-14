@@ -29,6 +29,9 @@ public sealed class AqpLoaderTests
         Assert.Equal(86, model.Meshes[0].PaletteIndices[0].X);
         Assert.Equal(Pso2BodyType.Type2, model.BodyType);
         Assert.Equal(3, model.Materials.Count(material => material.UsesSkinTexture));
+        Assert.Contains(model.Meshes, mesh => mesh.Part == Pso2MeshPart.BasewearOrnament1);
+        Assert.Contains(model.Meshes, mesh => mesh.Part == Pso2MeshPart.BasewearOrnament2);
+        Assert.DoesNotContain(model.Meshes, mesh => mesh.Part == Pso2MeshPart.OuterwearOrnament);
         Assert.Equal(
             [
                 MaterialBlendMode.Opaque,
@@ -93,6 +96,23 @@ public sealed class AqpLoaderTests
     [InlineData("model.aqp", Pso2BodyType.Unknown)]
     public void DetectBodyTypeUsesNgsRebootModelId(string source, Pso2BodyType expected) =>
         Assert.Equal(expected, AqpLoader.DetectBodyType(source));
+
+    [ExternalDataFact("PSO2_GAME_DIR")]
+    public void CombatJacketArchivesPreserveToggleableOrnamentParts()
+    {
+        var locator = new Pso2DataLocator(TestPaths.GameDirectory);
+        var basewearPath = locator.Resolve("character/making_reboot/pl_bw_201630.ice")?.Path;
+        var outerwearPath = locator.Resolve("character/making_reboot/pl_ow_201630.ice")?.Path;
+        Assert.NotNull(basewearPath);
+        Assert.NotNull(outerwearPath);
+
+        var basewear = Assert.Single(ModelArchiveLoader.Load(basewearPath).Models);
+        var outerwear = Assert.Single(ModelArchiveLoader.Load(outerwearPath).Models);
+
+        Assert.Equal(1, basewear.Meshes.Count(mesh => mesh.Part == Pso2MeshPart.BasewearOrnament1));
+        Assert.Equal(4, basewear.Meshes.Count(mesh => mesh.Part == Pso2MeshPart.BasewearOrnament2));
+        Assert.Equal(2, outerwear.Meshes.Count(mesh => mesh.Part == Pso2MeshPart.OuterwearOrnament));
+    }
 
     [ExternalDataFact("PSO2_GAME_DIR")]
     public void YukariSetwearResolvesItsOwnAtlasWithoutReplacingClothesWithSkin()

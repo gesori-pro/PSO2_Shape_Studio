@@ -7,7 +7,8 @@ PSO2:NGS character body shapes with outfit shape-adjust AQM files (`_sa.aqm`).
 It provides a model preview and sliders for applying, editing, and saving those
 post-adjustments without using Blender.
 
-> **Current version:** [1.0.5](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.0.5).
+> **Current release:** [1.0.5](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.0.5).
+> **Next build:** 1.1.0.
 > Download the latest self-contained Windows x64 build from the release page.
 
 ## Features
@@ -39,7 +40,10 @@ post-adjustments without using Blender.
 - Use English (Global) and Japanese item names where catalog data is available.
 - Select Type 1 and Type 2 skin textures from the local game data.
 - Choose from eight viewport background colors for better outfit visibility.
-- Switch the application UI between English (Global), Japanese, and Korean.
+- Show or hide the ornament parts included in supported Basewear and Outerwear models.
+- Switch the application UI between English (Global), Japanese, Korean, and Traditional Chinese.
+- Add or override interface languages with contributor-friendly JSON files. See
+  [Localization guide](LOCALIZATION.md).
 
 ## Requirements
 

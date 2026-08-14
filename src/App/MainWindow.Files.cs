@@ -167,6 +167,7 @@ public partial class MainWindow : Window
                 Models.Add(entry);
             }
 
+            RefreshOrnamentControls();
             RefreshViewportModels();
             RebuildPose();
             UpdateCommandAvailability();
@@ -298,6 +299,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        RefreshOrnamentControls();
         RefreshViewportModels();
         StatusText.Text = L(AppText.ModelRemoved, entry.DisplayName);
         e.Handled = true;

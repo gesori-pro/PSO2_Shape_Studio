@@ -34,6 +34,7 @@ public sealed class ModelViewport : OpenGlControlBase
     private Matrix4x4[] _pendingSkinMatrices = IdentityBones();
     private bool _sceneDirty = true;
     private bool _bonesDirty = true;
+    private int _hiddenMeshPartMask;
 
     private GL? _gl;
     private uint _program;
@@ -106,6 +107,27 @@ public sealed class ModelViewport : OpenGlControlBase
     {
         _floorGuideVisible = visible;
         RequestNextFrameRendering();
+    }
+
+    public void SetOrnamentVisibility(
+        bool basewearOrnament1,
+        bool basewearOrnament2,
+        bool outerwearOrnament)
+    {
+        var mask = 0;
+        Hide(Pso2MeshPart.BasewearOrnament1, basewearOrnament1);
+        Hide(Pso2MeshPart.BasewearOrnament2, basewearOrnament2);
+        Hide(Pso2MeshPart.OuterwearOrnament, outerwearOrnament);
+        Volatile.Write(ref _hiddenMeshPartMask, mask);
+        RequestNextFrameRendering();
+
+        void Hide(Pso2MeshPart part, bool visible)
+        {
+            if (!visible)
+            {
+                mask |= 1 << (int)part;
+            }
+        }
     }
 
     public void SetModels(IEnumerable<RenderModel> models)
@@ -294,9 +316,12 @@ public sealed class ModelViewport : OpenGlControlBase
             // and additive materials follow far-to-near without touching depth.
             // Leaving blending enabled for opaque materials lets tiny non-zero
             // BC alpha values reveal the surface below as single-pixel specks.
-            var drawOrder = _gpuMeshes
+            var hiddenMeshPartMask = Volatile.Read(ref _hiddenMeshPartMask);
+            var visibleMeshes = _gpuMeshes.Where(value =>
+                IsMeshPartVisible(value.Part, hiddenMeshPartMask));
+            var drawOrder = visibleMeshes
                 .Where(value => !value.IsTransparent)
-                .Concat(_gpuMeshes
+                .Concat(visibleMeshes
                     .Where(value => value.IsTransparent)
                     .OrderByDescending(value =>
                         Vector3.DistanceSquared(cameraPosition, value.Center)));
@@ -707,7 +732,14 @@ public sealed class ModelViewport : OpenGlControlBase
             material.AlphaCutoff / 255f,
             material.TextureUvSets,
             material.BlendMode,
-            MeshCenter(mesh));
+            MeshCenter(mesh),
+            mesh.Part);
+    }
+
+    private static bool IsMeshPartVisible(Pso2MeshPart part, int hiddenMeshPartMask)
+    {
+        var value = (int)part;
+        return value is < 0 or >= 31 || (hiddenMeshPartMask & (1 << value)) == 0;
     }
 
     private unsafe void CreateFloorGuide(GL api)
@@ -1095,7 +1127,8 @@ public sealed class ModelViewport : OpenGlControlBase
         float AlphaCutoff,
         RenderTextureUvSets TextureUvSets,
         MaterialBlendMode BlendMode,
-        Vector3 Center)
+        Vector3 Center,
+        Pso2MeshPart Part)
     {
         public bool IsTransparent => BlendMode is
             MaterialBlendMode.AlphaBlend or MaterialBlendMode.Additive;

@@ -187,7 +187,8 @@ public static class AqpLoader
                     ? meshMaterialMapping[meshIndex]
                     : mesh.mateIndex,
                 uv2,
-                uv3);
+                uv3,
+                (Pso2MeshPart)mesh.baseMeshDummyId);
         }
 
         return new RenderModel(sourceName, meshes, materials, DetectBodyType(sourceName));
