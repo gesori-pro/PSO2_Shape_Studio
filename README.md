@@ -1,6 +1,6 @@
 # PSO2 Shape Studio
 
-**English** | [日本語](README.ja.md) | [한국어](README.ko.md)
+**English** | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-Hans.md) | [繁體中文](README.zh-Hant.md)
 
 PSO2 Shape Studio is a Windows desktop tool for users who fine-tune PSO2 and
 PSO2:NGS character body shapes with outfit shape-adjust AQM files (`_sa.aqm`).
@@ -40,7 +40,7 @@ post-adjustments without using Blender.
 - Select Type 1 and Type 2 skin textures from the local game data.
 - Choose from eight viewport background colors for better outfit visibility.
 - Show or hide the ornament parts included in supported Basewear and Outerwear models.
-- Switch the application UI between English (Global), Japanese, Korean, and Traditional Chinese.
+- Switch the application UI between English (Global), Japanese, Korean, Simplified Chinese, and Traditional Chinese.
 - Add or override interface languages with contributor-friendly JSON files. See
   [Localization guide](LOCALIZATION.md).
 
@@ -65,7 +65,50 @@ Extracted model files can be opened directly without configuring a game folder.
 5. Edit the available S/P/R sliders or enter values directly. The Options window
    can hide built-in groups or add bones from the loaded model. Use undo or reset
    whenever needed.
-6. Save the resulting shape adjustment as an `_sa.aqm` file.
+6. Save the resulting shape adjustment as an `_sa.aqm` file. To make the
+   game use it, follow the repacking steps in the next section.
+
+## Applying a saved _sa.aqm to the game
+
+The `_sa.aqm` written by Shape Studio is a per-outfit shape adjustment. The
+game never reads it as a loose file: it only takes effect after it replaces
+the original `..._sa.aqm` entry inside that outfit's ICE archive. The steps
+below repack the archive with the community ICE tool
+[Zamboni](https://github.com/Shadowth117/Zamboni).
+
+1. **Save under the original entry name.** Load the outfit first, then use
+   *Save _sa.aqm…* — the dialog suggests the correct name derived from the
+   loaded model (for example `pl_rbd_201630_bw.aqp` →
+   `pl_rbd_201630_bw_sa.aqm`). Keep that name; a file saved under any other
+   name will not replace anything.
+2. **Locate the outfit's game file.** Hover over a search result to see the
+   full path of the ICE archive it resolves to (a 32-character file name
+   under `pso2_bin/data/...`). The loaded-model list shows the same path as
+   a tooltip. Copy that file into a short working folder such as `C:\work` —
+   never edit files inside the game folder directly.
+3. **Extract the copy with Zamboni.** Drag the copied file onto Zamboni to
+   unpack it. Model data lands in the `group2` folder, which contains the
+   original `..._sa.aqm`.
+4. **Replace the entry.** Overwrite the `..._sa.aqm` inside `group2` with
+   your saved file. Do not keep backup copies inside the extracted folders —
+   everything in them is packed back into the archive.
+5. **Repack.** Repack the extracted folder with Zamboni, and make sure the
+   result carries the original 32-character file name before installing
+   (rename it if needed). Very long working paths can make repacking fail
+   silently, which is why the short folder in step 2 matters.
+6. **Install.** The safe route is a mod manager such as
+   [PSO2NGS Mod Manager](https://github.com/KizKizz/pso2_mod_manager),
+   which backs up originals and can restore them later. Installing by hand
+   means backing up the original game file yourself, then overwriting it
+   with the repacked archive.
+
+Notes:
+
+- The adjustment only affects the outfit it was repacked into.
+- Game updates can restore original files; reinstall the mod afterwards.
+- You can preview the result by opening the repacked ICE in Shape Studio
+  before installing it.
+- Modifying game files is at your own risk.
 
 ## Camera controls
 

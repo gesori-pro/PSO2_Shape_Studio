@@ -38,5 +38,5 @@ Japanese item-name tables, so this locale file translates interface and category
 add a new item-name database.
 
 The BCP 47 `code` also controls number formatting and automatic Windows language detection. The app
-follows the culture hierarchy, so `en-US` selects `en`, `ja-JP` selects `ja`, and `zh-TW`, `zh-HK`,
-or `zh-MO` select `zh-Hant` without extra metadata.
+follows the culture hierarchy, so `en-US` selects `en`, `ja-JP` selects `ja`, `zh-TW`, `zh-HK`, or
+`zh-MO` select `zh-Hant`, and `zh-CN` or `zh-SG` select `zh-Hans` without extra metadata.

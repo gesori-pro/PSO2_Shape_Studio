@@ -15,7 +15,9 @@ public sealed partial class LocalizationTests
     [InlineData("zh-Hant", "zh-Hant")]
     [InlineData("zh-HK", "zh-Hant")]
     [InlineData("zh-MO", "zh-Hant")]
-    [InlineData("zh-CN", "en")]
+    [InlineData("zh-Hans", "zh-Hans")]
+    [InlineData("zh-CN", "zh-Hans")]
+    [InlineData("zh-SG", "zh-Hans")]
     public void DetectSystemLanguageUsesWindowsUiCulture(string cultureName, string expectedCode)
     {
         var culture = CultureInfo.GetCultureInfo(cultureName);
@@ -34,6 +36,8 @@ public sealed partial class LocalizationTests
     [InlineData("ko-KR", "ko")]
     [InlineData("zh-TW", "zh-Hant")]
     [InlineData("zh-Hant", "zh-Hant")]
+    [InlineData("zh-CN", "zh-Hans")]
+    [InlineData("zh-Hans", "zh-Hans")]
     public void SavedLanguageCodesAndCultureVariantsResolve(string input, string expectedCode)
     {
         var language = AppLocalizer.ParseLanguage(input);
@@ -49,9 +53,9 @@ public sealed partial class LocalizationTests
     {
         var options = AppLocalizer.AvailableLanguages;
 
-        Assert.Equal(new[] { "en", "ja", "ko", "zh-Hant" },
+        Assert.Equal(new[] { "en", "ja", "ko", "zh-Hans", "zh-Hant" },
             options.Select(option => AppLocalizer.LanguageCode(option.Language)));
-        Assert.Equal(new[] { "English (Global)", "日本語", "한국어", "繁體中文" },
+        Assert.Equal(new[] { "English (Global)", "日本語", "한국어", "简体中文", "繁體中文" },
             options.Select(option => option.DisplayName));
     }
 
@@ -67,7 +71,7 @@ public sealed partial class LocalizationTests
                 "schema.json", StringComparison.OrdinalIgnoreCase))
             .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        Assert.Equal(4, files.Length);
+        Assert.Equal(5, files.Length);
 
         using var englishDocument = JsonDocument.Parse(File.ReadAllText(
             Path.Combine(localesDirectory, "en.json")));
