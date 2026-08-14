@@ -33,9 +33,39 @@ public sealed class CharacterFileTests
     [InlineData("character.fnpu")]
     [InlineData("character.fhpu")]
     [InlineData("CHARACTER.FCPU")]
-    public void RaceSpecificCharacterExtensionsAreSupported(string path)
+    [InlineData("character.mdp")]
+    [InlineData("character.mnp")]
+    [InlineData("character.mhp")]
+    [InlineData("character.mcp")]
+    [InlineData("character.mdpu")]
+    [InlineData("character.mnpu")]
+    [InlineData("character.mhpu")]
+    [InlineData("CHARACTER.MCPU")]
+    public void GenderAndRaceCharacterExtensionsAreSupported(string path)
     {
         Assert.True(CharacterFile.IsSupportedPath(path));
+    }
+
+    /// <summary>
+    /// The male half was missing at first, which made male characters
+    /// unopenable even though the format and the male proportion table were
+    /// already in place. Pin the full matrix so a hand edit cannot drop one.
+    /// </summary>
+    [Fact]
+    public void SupportedExtensionsCoverEveryGenderRaceAndEncryption()
+    {
+        Assert.Equal(16, CharacterFile.SupportedExtensions.Count);
+        Assert.Equal(
+            CharacterFile.SupportedExtensions.Count,
+            CharacterFile.SupportedExtensions.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        foreach (var gender in new[] { "f", "m" })
+        {
+            foreach (var race in new[] { "d", "n", "h", "c" })
+            {
+                Assert.Contains($".{gender}{race}p", CharacterFile.SupportedExtensions);
+                Assert.Contains($".{gender}{race}pu", CharacterFile.SupportedExtensions);
+            }
+        }
     }
 
     [Theory]

@@ -13,9 +13,10 @@ post-adjustments without using Blender.
 ## Features
 
 - Open PSO2 model files from `.aqp`, `.aqn`, and `.ice` sources.
-- Load legacy race-specific character appearance files (`.fdp`, `.fnp`, `.fhp`,
-  and `.fcp`) and their unencrypted variants, then apply their body proportions
-  and colors.
+- Load character appearance files for either gender and every race (`.fdp`,
+  `.fnp`, `.fhp`, `.fcp`, `.mdp`, `.mnp`, `.mhp`, and `.mcp`) and their
+  unencrypted variants, then apply their body proportions and colors. Male and
+  female characters use their own body proportion tables.
 - Load and save outfit shape-adjust motions (`_sa.aqm`).
 - Adjust sole height through `body_root` Y scale from 0.500 to 1.200 in 0.001
   steps and compare it against a toggleable floor grid with a solid translucent

@@ -14,6 +14,8 @@ internal static class TestPaths
 
     public static string GoldenFnp => UnderTestData("golden_test", "golden_fnp.json");
 
+    public static string GoldenMale => UnderTestData("golden_test", "golden_male.json");
+
     public static string GoldenShape => UnderTestData("golden_test", "golden_sa.aqm");
 
     public static string GoldenFocuslitePose =>
@@ -22,6 +24,13 @@ internal static class TestPaths
     public static string ReferenceFnp => RequireFile("PSO2_SHAPE_REFERENCE_FNP");
 
     public static string FocusliteFnp => RequireFile("PSO2_SHAPE_FOCUSLITE_FNP");
+
+    /// <summary>
+    /// A male character file (m*p). The proportion tables differ by gender,
+    /// and male files were unopenable at first, so the male half needs its
+    /// own fixture rather than sharing the female reference.
+    /// </summary>
+    public static string MaleCharacter => RequireFile("PSO2_SHAPE_MALE_CHARACTER");
 
     public static string GameDirectory => RequireDirectory("PSO2_GAME_DIR");
 

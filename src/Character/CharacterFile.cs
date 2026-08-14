@@ -18,17 +18,19 @@ public sealed class CharacterFile
 {
     public const uint CharacterBlowfishKey = 0x9A46D7C8;
 
+    /// <summary>
+    /// Every character-file extension the salon writes, built from the naming
+    /// rule rather than listed by hand so no combination can go missing: the
+    /// first letter is the gender (f/m), the second the race (Deuman, Newman,
+    /// Human, Cast), and a trailing "u" marks an unencrypted body. All sixteen
+    /// share one format and one set of version layouts - the gender that
+    /// drives proportions is read from baseDOC.gender, not from the name.
+    /// </summary>
     public static IReadOnlyList<string> SupportedExtensions { get; } = Array.AsReadOnly(
-    [
-        ".fdp",
-        ".fnp",
-        ".fhp",
-        ".fcp",
-        ".fdpu",
-        ".fnpu",
-        ".fhpu",
-        ".fcpu",
-    ]);
+        (from gender in new[] { "f", "m" }
+         from race in new[] { "d", "n", "h", "c" }
+         from encryption in new[] { "", "u" }
+         select $".{gender}{race}p{encryption}").ToArray());
 
     private readonly byte[] _body;
     private readonly IReadOnlyDictionary<string, CharacterField> _layout;
