@@ -6,8 +6,7 @@ PSO2 Shape Studio는 의상 체형 보정 AQM(`_sa.aqm`)을 이용해 PSO2 및 P
 캐릭터 체형을 후보정하는 사용자를 위한 Windows 데스크톱 도구입니다. Blender 없이
 모델을 미리 보면서 체형 보정을 적용·편집·저장할 수 있습니다.
 
-> **현재 공개 버전:** [1.0.5](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.0.5).
-> **다음 빌드:** 1.1.0.
+> **현재 버전:** [1.1.0](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.1.0).
 > 최신 자체 포함 Windows x64 빌드는 릴리스 페이지에서 다운로드할 수 있습니다.
 
 ## 기능
