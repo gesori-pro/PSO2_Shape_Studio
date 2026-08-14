@@ -14,12 +14,14 @@ public sealed class CharacterFileTests
     {
         Assert.Equal(0x3645D7C8u, CharacterFile.DeriveKey(940));
         var source = Enumerable.Range(0, 947).Select(index => (byte)(index * 37)).ToArray();
-        var cipher = new Pso2Blowfish(CharacterFile.DeriveKey(source.Length));
-        var encrypted = cipher.encryptBlock(source);
-        var decrypted = cipher.decryptBlock(encrypted);
+        var key = CharacterFile.DeriveKey(source.Length);
+        var encrypted = CharacterCipher.Encrypt(source, key);
+        var decrypted = CharacterCipher.Decrypt(encrypted, key);
 
         Assert.NotEqual(source, encrypted);
         Assert.Equal(source, decrypted);
+        // The trailing 3 bytes (947 % 8) stay unencrypted in this format.
+        Assert.Equal(source[^3..], encrypted[^3..]);
     }
 
     [Theory]
@@ -72,7 +74,7 @@ public sealed class CharacterFileTests
         var raw = File.ReadAllBytes(FnpPath);
         var bodySize = BinaryPrimitives.ReadInt32LittleEndian(raw.AsSpan(4, 4));
         var encrypted = raw.AsSpan(16, bodySize).ToArray();
-        var body = new Pso2Blowfish(CharacterFile.DeriveKey(bodySize)).decryptBlock(encrypted);
+        var body = CharacterCipher.Decrypt(encrypted, CharacterFile.DeriveKey(bodySize));
         body.CopyTo(raw, 16);
 
         foreach (var extension in new[] { ".fdpu", ".fnpu", ".fhpu", ".fcpu" })

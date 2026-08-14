@@ -88,7 +88,7 @@ public sealed class CharacterFile
                     $"Character CRC mismatch: stored=0x{storedCrc:X8}, actual=0x{actualCrc:X8}.");
             }
 
-            body = new Pso2Blowfish(DeriveKey(bodySize)).decryptBlock(payload);
+            body = CharacterCipher.Decrypt(payload, DeriveKey(bodySize));
         }
 
         var layout = LoadLayout(version, out var declaredSize);
@@ -103,7 +103,7 @@ public sealed class CharacterFile
 
     public void Save(string path)
     {
-        var encrypted = new Pso2Blowfish(DeriveKey(_body.Length)).encryptBlock(_body);
+        var encrypted = CharacterCipher.Encrypt(_body, DeriveKey(_body.Length));
         var output = new byte[16 + encrypted.Length];
         BinaryPrimitives.WriteInt32LittleEndian(output.AsSpan(0, 4), Version);
         BinaryPrimitives.WriteInt32LittleEndian(output.AsSpan(4, 4), encrypted.Length);

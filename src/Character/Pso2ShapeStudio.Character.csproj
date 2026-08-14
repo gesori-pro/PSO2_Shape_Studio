@@ -1,13 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Character customization files: fdp/fnp/fhp/fcp parsing, Blowfish, slider-to-
-       bone math, and character colors. Pure managed code - the one module
-       with no AquaModelLibrary dependency, so it stays trivially testable. -->
+  <!-- Character customization files: fdp/fnp/fhp/fcp parsing, encryption,
+       slider-to-bone math, and character colors. Pure managed code - the one
+       module with no AquaModelLibrary dependency, so it stays trivially
+       testable. The xxp-style layouts are embedded JSON because the library
+       has no player-character-file support (that lives in PSO2-Salon-Tool);
+       the cipher is standard Blowfish through BouncyCastle. -->
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
+  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Data\**\*.json" />
