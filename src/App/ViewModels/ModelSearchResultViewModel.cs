@@ -31,13 +31,11 @@ public sealed class ModelSearchResultViewModel : INotifyPropertyChanged
         {
             var globalEnglish = Record.NameEnglish;
             var japanese = Record.NameJapanese;
-            return _language switch
-            {
-                AppLanguage.Japanese => FirstName(
-                    japanese, globalEnglish, AppLocalizer.Text(_language, AppText.UnnamedItem, Record.Id)),
-                _ => FirstName(
-                    globalEnglish, japanese, AppLocalizer.Text(_language, AppText.UnnamedItem, Record.Id)),
-            };
+            return AppLocalizer.IsLanguage(_language, "ja")
+                ? FirstName(
+                    japanese, globalEnglish, AppLocalizer.Text(_language, AppText.UnnamedItem, Record.Id))
+                : FirstName(
+                    globalEnglish, japanese, AppLocalizer.Text(_language, AppText.UnnamedItem, Record.Id));
         }
     }
 

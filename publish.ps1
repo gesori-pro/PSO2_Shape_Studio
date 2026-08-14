@@ -13,12 +13,16 @@
 
 .EXAMPLE
     ./publish.ps1 -SkipTests
+
+.EXAMPLE
+    ./publish.ps1 -KeepPublishDirectory
 #>
 [CmdletBinding()]
 param(
     [string]$Configuration = 'Release',
     [string]$Runtime = 'win-x64',
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$KeepPublishDirectory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,7 +91,7 @@ Invoke-Dotnet @(
 Get-ChildItem -Path $publishDir -Recurse -Filter '*.pdb' | Remove-Item -Force
 
 # The licence and the three readmes sit beside the executable in the package.
-foreach ($document in @('LICENSE', 'README.md', 'README.ko.md', 'README.ja.md')) {
+foreach ($document in @('LICENSE', 'README.md', 'README.ko.md', 'README.ja.md', 'LOCALIZATION.md')) {
     Copy-Item -Path (Join-Path $repoRoot $document) -Destination $publishDir -Force
 }
 
@@ -103,6 +107,18 @@ Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $archivePath
 
 $archive = Get-Item -Path $archivePath
 $hash = (Get-FileHash -Path $archivePath -Algorithm SHA256).Hash
+
+# The ZIP is the deliverable. Do not retain another executable copy unless the
+# caller explicitly needs the unpacked directory for local inspection.
+if (-not $KeepPublishDirectory) {
+    Remove-Item -LiteralPath $publishDir -Recurse -Force
+
+    $publishRoot = Split-Path -Path $publishDir -Parent
+    if ((Test-Path -LiteralPath $publishRoot) -and
+        -not (Get-ChildItem -LiteralPath $publishRoot -Force)) {
+        Remove-Item -LiteralPath $publishRoot -Force
+    }
+}
 
 Write-Host ''
 Write-Host "Package : $($archive.FullName)" -ForegroundColor Green

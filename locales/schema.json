@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gesori-pro/PSO2_Shape_Studio/blob/main/locales/schema.json",
+  "title": "PSO2 Shape Studio locale",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "code",
+    "name",
+    "order",
+    "strings",
+    "shapeNames",
+    "objectTypes"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string",
+      "minLength": 2,
+      "description": "Canonical BCP 47 language code stored in settings."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Native language name displayed in the language selector."
+    },
+    "order": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 100
+    },
+    "strings": {
+      "$ref": "#/$defs/translations"
+    },
+    "shapeNames": {
+      "$ref": "#/$defs/translations"
+    },
+    "objectTypes": {
+      "$ref": "#/$defs/translations"
+    }
+  },
+  "$defs": {
+    "translations": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

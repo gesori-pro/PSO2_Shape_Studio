@@ -20,7 +20,7 @@ internal sealed record CustomBoneGroupSetting(
 
 internal sealed record AppSettings(
     string DataPath = "",
-    string Language = "en",
+    string Language = "",
     int SkinType1 = 100000,
     int SkinType2 = 200000,
     string Background = "0E1114",

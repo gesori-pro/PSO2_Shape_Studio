@@ -2,10 +2,10 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
-    <Version>1.0.5</Version>
-    <AssemblyVersion>1.0.5.0</AssemblyVersion>
-    <FileVersion>1.0.5.0</FileVersion>
-    <InformationalVersion>1.0.5</InformationalVersion>
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
+    <InformationalVersion>1.1.0</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -30,5 +30,18 @@
     <ProjectReference Include="..\Formats\Pso2ShapeStudio.Formats.csproj" />
     <ProjectReference Include="..\Rigging\Pso2ShapeStudio.Rigging.csproj" />
     <ProjectReference Include="..\GameData\Pso2ShapeStudio.GameData.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\locales\*.json"
+                      Exclude="..\..\locales\schema.json">
+      <LogicalName>Pso2ShapeStudio.Locales.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <Content Include="..\..\locales\*.json">
+      <Link>locales\%(Filename)%(Extension)</Link>
+      <TargetPath>locales\%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 </Project>

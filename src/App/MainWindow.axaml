@@ -33,11 +33,7 @@
           </StackPanel>
           <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Top">
             <ComboBox x:Name="LanguageComboBox" Width="154" SelectedIndex="0"
-                      ToolTip.Tip="Interface language">
-              <ComboBoxItem Content="English (Global)" Tag="en" />
-              <ComboBoxItem Content="日本語" Tag="ja" />
-              <ComboBoxItem Content="한국어" Tag="ko" />
-            </ComboBox>
+                      ToolTip.Tip="Interface language" />
             <ComboBox x:Name="BackgroundComboBox" Width="154" SelectedIndex="0"
                       ToolTip.Tip="Viewport background">
               <ComboBoxItem Content="Dark" Tag="0E1114" />

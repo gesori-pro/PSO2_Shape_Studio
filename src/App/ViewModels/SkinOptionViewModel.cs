@@ -30,10 +30,11 @@ public sealed class SkinOptionViewModel : INotifyPropertyChanged
     {
         get
         {
-            var preferred = _language == AppLanguage.Japanese
+            var useJapaneseNames = AppLocalizer.IsLanguage(_language, "ja");
+            var preferred = useJapaneseNames
                 ? Record.NameJapanese
                 : Record.NameEnglish;
-            var fallback = _language == AppLanguage.Japanese
+            var fallback = useJapaneseNames
                 ? Record.NameEnglish
                 : Record.NameJapanese;
             var name = !string.IsNullOrWhiteSpace(preferred)

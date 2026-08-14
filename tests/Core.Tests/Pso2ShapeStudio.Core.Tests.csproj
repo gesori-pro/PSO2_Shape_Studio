@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\App\Pso2ShapeStudio.App.csproj" />
     <ProjectReference Include="..\..\src\Character\Pso2ShapeStudio.Character.csproj" />
     <ProjectReference Include="..\..\src\Formats\Pso2ShapeStudio.Formats.csproj" />
     <ProjectReference Include="..\..\src\Rigging\Pso2ShapeStudio.Rigging.csproj" />

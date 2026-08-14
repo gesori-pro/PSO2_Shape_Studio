@@ -52,7 +52,7 @@ public partial class MainWindow : Window
     private int _stressFrame;
     private Pso2DataLocator? _dataLocator;
     private ModelCatalog? _catalog;
-    private AppLanguage _language = AppLanguage.English;
+    private AppLanguage _language = AppLocalizer.DetectSystemLanguage();
     private bool _applyingLanguage;
     private bool _applyingSkinSelections;
     private int _selectedSkinType1Id = DefaultSkinType1Id;
@@ -87,11 +87,13 @@ public partial class MainWindow : Window
         _shapeEditTimer.Tick += (_, _) => CommitPendingShapeEdit();
         RebuildSliderGroups();
         Viewport.SetCharacterColors(_characterColors);
+        LanguageComboBox.ItemsSource = AppLocalizer.AvailableLanguages;
         AddHandler(
             InputElement.KeyDownEvent,
             WindowKeyDown,
             RoutingStrategies.Tunnel,
             handledEventsToo: true);
+        LanguageComboBox.SelectedIndex = LanguageIndex(_language);
         ApplyLanguage(initializeDataState: true);
         LanguageComboBox.SelectionChanged += LanguageChanged;
         BackgroundComboBox.SelectionChanged += async (_, _) =>
@@ -329,12 +331,12 @@ public partial class MainWindow : Window
     private async void LanguageChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_applyingLanguage ||
-            LanguageComboBox.SelectedItem is not ComboBoxItem { Tag: string code })
+            LanguageComboBox.SelectedItem is not AppLanguageOption option)
         {
             return;
         }
 
-        SetLanguage(AppLocalizer.ParseLanguage(code));
+        SetLanguage(option.Language);
         try
         {
             await SaveSettingsAsync();
@@ -351,14 +353,26 @@ public partial class MainWindow : Window
     {
         _language = language;
         _applyingLanguage = true;
-        LanguageComboBox.SelectedIndex = language switch
-        {
-            AppLanguage.Japanese => 1,
-            AppLanguage.Korean => 2,
-            _ => 0,
-        };
+        LanguageComboBox.SelectedIndex = LanguageIndex(language);
         _applyingLanguage = false;
         ApplyLanguage(initializeDataState: false);
+    }
+
+    private static int LanguageIndex(AppLanguage language)
+    {
+        var code = AppLocalizer.LanguageCode(language);
+        for (var index = 0; index < AppLocalizer.AvailableLanguages.Count; index++)
+        {
+            if (string.Equals(
+                    AppLocalizer.LanguageCode(AppLocalizer.AvailableLanguages[index].Language),
+                    code,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return index;
+            }
+        }
+
+        return 0;
     }
 
     private void ApplyLanguage(bool initializeDataState)
