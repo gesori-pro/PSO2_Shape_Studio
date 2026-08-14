@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using BCnEncoder.Decoder;
+using BCnEncoder.Shared;
 using BCnEncoder.Shared.ImageFiles;
 using Pfim;
 
@@ -39,16 +41,12 @@ public static class DdsTextureDecoder
                 $"DDS texture '{name}' decoded to {pixels.Length} pixels for {width}x{height}.");
         }
 
+        // ColorRgba32 is four sequential bytes in r,g,b,a order - exactly the
+        // output layout - so a 16M-pixel skin texture is one block copy
+        // instead of a bounds-checked per-pixel loop.
+        System.Diagnostics.Debug.Assert(Marshal.SizeOf<ColorRgba32>() == 4);
         var rgba = new byte[checked(width * height * 4)];
-        for (var index = 0; index < width * height; index++)
-        {
-            var pixel = pixels[index];
-            var target = index * 4;
-            rgba[target] = pixel.r;
-            rgba[target + 1] = pixel.g;
-            rgba[target + 2] = pixel.b;
-            rgba[target + 3] = pixel.a;
-        }
+        MemoryMarshal.AsBytes(pixels.AsSpan(0, width * height)).CopyTo(rgba);
 
         return new RenderTexture(name, width, height, rgba);
     }

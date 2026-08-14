@@ -48,8 +48,6 @@ public partial class MainWindow : Window
     private ShapeHistoryState? _pendingShapeEdit;
     private readonly DispatcherTimer _shapeEditTimer;
     private bool _updatingEditors;
-    private DispatcherTimer? _stressTimer;
-    private int _stressFrame;
     private Pso2DataLocator? _dataLocator;
     private ModelCatalog? _catalog;
     private AppLanguage _language = AppLocalizer.DetectSystemLanguage();
@@ -186,15 +184,6 @@ public partial class MainWindow : Window
             ViewportPointerWheelChanged,
             RoutingStrategies.Tunnel,
             handledEventsToo: true);
-        if (Environment.GetCommandLineArgs().Contains(
-                "--camera-diagnostics",
-                StringComparer.OrdinalIgnoreCase))
-        {
-            Viewport.CameraChanged += (_, camera) =>
-                StatusText.Text =
-                    $"CAMERA mode={camera.Mode} yaw={camera.Yaw:F3} pitch={camera.Pitch:F3} " +
-                    $"focusY={camera.FocusY:F3} distance={camera.Distance:F3}";
-        }
         Viewport.RendererStatusChanged += (_, message) =>
         {
             if (StatusText.Text == L(AppText.Ready) ||
@@ -203,65 +192,7 @@ public partial class MainWindow : Window
                 StatusText.Text = message;
             }
         };
-        var rendererSmoke = Environment.GetCommandLineArgs().FirstOrDefault(argument =>
-            argument.StartsWith("--renderer-smoke=", StringComparison.OrdinalIgnoreCase));
-        if (rendererSmoke is not null)
-        {
-            var reportPath = rendererSmoke["--renderer-smoke=".Length..];
-            ShowInTaskbar = false;
-            WindowStartupLocation = WindowStartupLocation.Manual;
-            Position = new PixelPoint(-32000, -32000);
-            Viewport.RendererStatusChanged += (_, message) =>
-            {
-                try
-                {
-                    File.WriteAllText(reportPath, message);
-                }
-                finally
-                {
-                    DispatcherTimer.RunOnce(Close, TimeSpan.FromMilliseconds(100));
-                }
-            };
-        }
-        var sceneSmoke = Environment.GetCommandLineArgs().FirstOrDefault(argument =>
-            argument.StartsWith("--scene-smoke=", StringComparison.OrdinalIgnoreCase));
-        if (sceneSmoke is not null)
-        {
-            var reportPath = sceneSmoke["--scene-smoke=".Length..];
-            var completed = false;
-            ShowInTaskbar = false;
-            WindowStartupLocation = WindowStartupLocation.Manual;
-            Position = new PixelPoint(-32000, -32000);
-
-            void CompleteSceneSmoke(string message)
-            {
-                if (completed)
-                {
-                    return;
-                }
-
-                completed = true;
-                File.WriteAllText(reportPath, message);
-                DispatcherTimer.RunOnce(Close, TimeSpan.FromMilliseconds(100));
-            }
-
-            Viewport.RendererStatusChanged += (_, message) =>
-            {
-                if (message.Contains(L(AppText.FailedWord), StringComparison.OrdinalIgnoreCase))
-                {
-                    CompleteSceneSmoke(message);
-                }
-            };
-            Viewport.StatisticsChanged += (_, statistics) =>
-            {
-                if (statistics.VertexCount > 0 && statistics.TextureCount > 0)
-                {
-                    CompleteSceneSmoke(
-                        $"scene ready: models={statistics.ModelCount} vertices={statistics.VertexCount} " +
-                        $"triangles={statistics.TriangleCount} textures={statistics.TextureCount}");
-                }
-            };
-        }
+        WireDiagnosticHooks();
         DragDrop.SetAllowDrop(this, true);
         DragDrop.AddDropHandler(this, FilesDropped);
         Opened += LoadCommandLineFiles;
@@ -349,8 +280,6 @@ public partial class MainWindow : Window
             StatusText.Text = L(AppText.DataPrepareFailedStatus, exception.Message);
         }
     }
-
-
 
     private void SetLanguage(AppLanguage language)
     {
@@ -549,32 +478,6 @@ public partial class MainWindow : Window
         await File.WriteAllTextAsync(SettingsPath, JsonSerializer.Serialize(settings));
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     private void WindowKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Source is TextBox || !e.KeyModifiers.HasFlag(KeyModifiers.Control))
@@ -599,20 +502,6 @@ public partial class MainWindow : Window
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     private void ViewportStatisticsChanged(object? sender, ViewportStatistics statistics)
     {
         _lastStatistics = statistics;
@@ -628,18 +517,6 @@ public partial class MainWindow : Window
             statistics.TextureCount,
             statistics.FramesPerSecond);
 
-    private void StartStressTest()
-    {
-        _stressTimer?.Stop();
-        _stressTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, (_, _) =>
-        {
-            var scale = 1.175f + 0.175f * MathF.Sin(_stressFrame++ * 0.08f);
-            _profile["waist"] = new ShapeValue(new Vector3(scale), Vector3.Zero, Vector3.Zero);
-            RebuildPose();
-        });
-        _stressTimer.Start();
-    }
-
     private void UpdateCommandAvailability()
     {
         var enabled = _skeleton is not null;
@@ -648,11 +525,6 @@ public partial class MainWindow : Window
         SaveAqmButton.IsEnabled = enabled;
         ResetShapeButton.IsEnabled = enabled;
     }
-
-
-
-
-
 
     private sealed record LoadResult(
         AqnSkeleton? Skeleton,

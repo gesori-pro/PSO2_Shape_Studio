@@ -1,10 +1,32 @@
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
+using BCnEncoder.Shared;
 using Pso2ShapeStudio.Formats;
 
 namespace Pso2ShapeStudio.Core.Tests.Formats;
 
 public sealed class DdsTextureDecoderTests
 {
+    /// <summary>
+    /// The BC7 path block-copies decoded pixels straight into the RGBA
+    /// buffer, which is only correct while ColorRgba32 stays four sequential
+    /// bytes in r,g,b,a order. A BCnEncoder update that changes the layout
+    /// must fail here, not as silently swapped colors.
+    /// </summary>
+    [Fact]
+    public void ColorRgba32_LayoutMatchesRgbaByteOrder()
+    {
+        Assert.Equal(4, Marshal.SizeOf<ColorRgba32>());
+        Assert.Equal(0, (int)Marshal.OffsetOf<ColorRgba32>("r"));
+        Assert.Equal(1, (int)Marshal.OffsetOf<ColorRgba32>("g"));
+        Assert.Equal(2, (int)Marshal.OffsetOf<ColorRgba32>("b"));
+        Assert.Equal(3, (int)Marshal.OffsetOf<ColorRgba32>("a"));
+
+        var bytes = MemoryMarshal.AsBytes(
+            stackalloc ColorRgba32[] { new(0x11, 0x22, 0x33, 0x44) });
+        Assert.Equal(new byte[] { 0x11, 0x22, 0x33, 0x44 }, bytes.ToArray());
+    }
+
     [Fact]
     public void Decode_ConvertsPfimBgraToRgba()
     {

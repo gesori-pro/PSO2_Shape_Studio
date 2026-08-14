@@ -13,13 +13,9 @@ using Silk.NET.OpenGL;
 
 namespace Pso2ShapeStudio.App.Rendering;
 
-public sealed class ModelViewport : OpenGlControlBase
+public sealed partial class ModelViewport : OpenGlControlBase
 {
     private const int MaximumBones = 256;
-    private const float DefaultYaw = -0.55f;
-    private const float DefaultPitch = 0.08f;
-    private const float DefaultDistance = 2.6f;
-    private static readonly Vector3 DefaultFocus = new(0, 1.0f, 0);
 
     private readonly object _sceneLock = new();
     private readonly List<GpuMesh> _gpuMeshes = [];
@@ -39,13 +35,7 @@ public sealed class ModelViewport : OpenGlControlBase
     private GL? _gl;
     private uint _program;
     private uint _boneBuffer;
-    private uint _floorVertexArray;
-    private uint _floorVertexBuffer;
-    private uint _floorSurfaceVertexCount;
-    private uint _floorGridFirstVertex;
-    private uint _floorGridVertexCount;
-    private uint _floorAxisFirstVertex;
-    private uint _floorAxisVertexCount;
+
     private int _viewProjectionLocation = -1;
     private int _useSkinningLocation = -1;
     private int _lightDirectionLocation = -1;
@@ -73,13 +63,7 @@ public sealed class ModelViewport : OpenGlControlBase
     private int _blendModeLocation = -1;
 
     private Vector3 _background = new(0.055f, 0.065f, 0.08f);
-    private bool _floorGuideVisible = true;
-    private Vector3 _focus = DefaultFocus;
-    private float _yaw = DefaultYaw;
-    private float _pitch = DefaultPitch;
-    private float _distance = DefaultDistance;
-    private Point _lastPointer;
-    private PointerMode _pointerMode;
+
     private readonly Stopwatch _renderClock = Stopwatch.StartNew();
     private int _framesInWindow;
     private int _modelCount;
@@ -100,12 +84,6 @@ public sealed class ModelViewport : OpenGlControlBase
     public void SetBackgroundColor(Vector3 color)
     {
         _background = Vector3.Clamp(color, Vector3.Zero, Vector3.One);
-        RequestNextFrameRendering();
-    }
-
-    public void SetFloorGuideVisible(bool visible)
-    {
-        _floorGuideVisible = visible;
         RequestNextFrameRendering();
     }
 
@@ -430,91 +408,6 @@ public sealed class ModelViewport : OpenGlControlBase
         base.OnOpenGlLost();
     }
 
-    public bool BeginCameraInteraction(
-        Point position,
-        PointerPointProperties properties,
-        KeyModifiers modifiers)
-    {
-        if (properties.PointerUpdateKind == PointerUpdateKind.MiddleButtonPressed ||
-            properties.IsMiddleButtonPressed)
-        {
-            ResetCamera();
-            return true;
-        }
-
-        var isRotationButton =
-            properties.PointerUpdateKind is PointerUpdateKind.LeftButtonPressed or
-                PointerUpdateKind.RightButtonPressed ||
-            properties.IsLeftButtonPressed ||
-            properties.IsRightButtonPressed;
-        _pointerMode = isRotationButton
-            ? modifiers.HasFlag(KeyModifiers.Control)
-                ? PointerMode.VerticalMove
-                : PointerMode.Rotate
-            : PointerMode.None;
-        if (_pointerMode != PointerMode.None)
-        {
-            _lastPointer = position;
-            ReportCameraState();
-        }
-
-        return _pointerMode != PointerMode.None;
-    }
-
-    public bool UpdateCameraInteraction(Point current)
-    {
-        if (_pointerMode == PointerMode.None)
-        {
-            return false;
-        }
-
-        var dx = (float)(current.X - _lastPointer.X);
-        var dy = (float)(current.Y - _lastPointer.Y);
-        _lastPointer = current;
-
-        if (_pointerMode == PointerMode.Rotate)
-        {
-            _yaw -= dx * 0.008f;
-            _pitch = Math.Clamp(_pitch + dy * 0.008f, -1.45f, 1.45f);
-        }
-        else
-        {
-            _focus.Y += dy * (_distance * 0.0015f);
-        }
-
-        RequestNextFrameRendering();
-        ReportCameraState();
-        return true;
-    }
-
-    public bool EndCameraInteraction()
-    {
-        var wasActive = _pointerMode != PointerMode.None;
-        _pointerMode = PointerMode.None;
-        return wasActive;
-    }
-
-    public void ZoomCamera(double delta)
-    {
-        _distance = Math.Clamp(_distance * MathF.Pow(0.88f, (float)delta), 0.25f, 20f);
-        RequestNextFrameRendering();
-        ReportCameraState();
-    }
-
-    private void ResetCamera()
-    {
-        _focus = DefaultFocus;
-        _yaw = DefaultYaw;
-        _pitch = DefaultPitch;
-        _distance = DefaultDistance;
-        RequestNextFrameRendering();
-        ReportCameraState();
-    }
-
-    private void ReportCameraState() => CameraChanged?.Invoke(
-        this,
-        new ViewportCameraState(_yaw, _pitch, _focus.Y, _distance, _pointerMode.ToString()));
-
     private unsafe void UploadPendingScene(GL api)
     {
         IReadOnlyList<RenderModel>? models = null;
@@ -538,7 +431,12 @@ public sealed class ModelViewport : OpenGlControlBase
             return;
         }
 
-        DeleteMeshes(api);
+        // Meshes are cheap to rebuild; textures are not (a skin set alone is
+        // hundreds of megabytes of mip-mapped uploads). Keep the texture
+        // cache across rebuilds so a visibility toggle, color change, or an
+        // added model only uploads pixels the GPU has not seen, then prune
+        // whatever this scene no longer references.
+        DeleteMeshBuffers(api);
         foreach (var model in models)
         {
             foreach (var mesh in model.Meshes)
@@ -583,6 +481,7 @@ public sealed class ModelViewport : OpenGlControlBase
             }
         }
 
+        PruneUnusedTextures(api);
         _modelCount = models.Count;
         _vertexCount = models.Sum(model => model.VertexCount);
         _triangleCount = models.Sum(model => model.TriangleCount);
@@ -667,7 +566,6 @@ public sealed class ModelViewport : OpenGlControlBase
                     ResolveBone(mesh.Palette, paletteIndex.W)));
         }
 
-        var indices = mesh.Triangles.Select(index => (uint)index).ToArray();
         var vao = api.GenVertexArray();
         var vertexBuffer = api.GenBuffer();
         var indexBuffer = api.GenBuffer();
@@ -683,12 +581,14 @@ public sealed class ModelViewport : OpenGlControlBase
                 BufferUsageARB.StaticDraw);
         }
 
+        // The triangle list is int[] but every value is a non-negative vertex
+        // index, so the bytes are uploaded directly as GL_UNSIGNED_INT.
         api.BindBuffer(BufferTargetARB.ElementArrayBuffer, indexBuffer);
-        fixed (uint* pointer = indices)
+        fixed (int* pointer = mesh.Triangles)
         {
             api.BufferData(
                 BufferTargetARB.ElementArrayBuffer,
-                (nuint)(indices.Length * sizeof(uint)),
+                (nuint)(mesh.Triangles.Length * sizeof(uint)),
                 pointer,
                 BufferUsageARB.StaticDraw);
         }
@@ -713,7 +613,7 @@ public sealed class ModelViewport : OpenGlControlBase
             vao,
             vertexBuffer,
             indexBuffer,
-            (uint)indices.Length,
+            (uint)mesh.Triangles.Length,
             texture,
             maskTexture,
             normalTexture,
@@ -740,156 +640,6 @@ public sealed class ModelViewport : OpenGlControlBase
     {
         var value = (int)part;
         return value is < 0 or >= 31 || (hiddenMeshPartMask & (1 << value)) == 0;
-    }
-
-    private unsafe void CreateFloorGuide(GL api)
-    {
-        const int halfLineCount = 10;
-        const float spacing = 0.25f;
-        const float extent = halfLineCount * spacing;
-        const float lineLift = 0.001f;
-        var vertices = new List<GpuVertex>(6 + halfLineCount * 8 + 4);
-
-        // A lightly tinted surface makes the exact Y=0 intersection boundary
-        // readable. It writes depth so geometry below the plane is hidden.
-        Add(new Vector3(-extent, 0f, -extent));
-        Add(new Vector3(extent, 0f, -extent));
-        Add(new Vector3(extent, 0f, extent));
-        Add(new Vector3(-extent, 0f, -extent));
-        Add(new Vector3(extent, 0f, extent));
-        Add(new Vector3(-extent, 0f, extent));
-        _floorSurfaceVertexCount = (uint)vertices.Count;
-
-        _floorGridFirstVertex = (uint)vertices.Count;
-        for (var line = -halfLineCount; line <= halfLineCount; line++)
-        {
-            if (line == 0)
-            {
-                continue;
-            }
-
-            var offset = line * spacing;
-            Add(new Vector3(-extent, lineLift, offset));
-            Add(new Vector3(extent, lineLift, offset));
-            Add(new Vector3(offset, lineLift, -extent));
-            Add(new Vector3(offset, lineLift, extent));
-        }
-        _floorGridVertexCount = (uint)vertices.Count - _floorGridFirstVertex;
-
-        _floorAxisFirstVertex = (uint)vertices.Count;
-        Add(new Vector3(-extent, lineLift * 2f, 0f));
-        Add(new Vector3(extent, lineLift * 2f, 0f));
-        Add(new Vector3(0f, lineLift * 2f, -extent));
-        Add(new Vector3(0f, lineLift * 2f, extent));
-        _floorAxisVertexCount = (uint)vertices.Count - _floorAxisFirstVertex;
-
-        _floorVertexArray = api.GenVertexArray();
-        _floorVertexBuffer = api.GenBuffer();
-        api.BindVertexArray(_floorVertexArray);
-        api.BindBuffer(BufferTargetARB.ArrayBuffer, _floorVertexBuffer);
-        var vertexArray = vertices.ToArray();
-        fixed (GpuVertex* pointer = vertexArray)
-        {
-            api.BufferData(
-                BufferTargetARB.ArrayBuffer,
-                (nuint)(vertexArray.Length * Marshal.SizeOf<GpuVertex>()),
-                pointer,
-                BufferUsageARB.StaticDraw);
-        }
-
-        ConfigureVertexAttributes(api);
-        api.BindVertexArray(0);
-
-        void Add(Vector3 position) => vertices.Add(new GpuVertex(
-            position,
-            Vector3.UnitY,
-            Vector2.Zero,
-            Vector2.Zero,
-            Vector2.Zero,
-            new Vector4(1f, 0f, 0f, 0f),
-            new Byte4(0, 0, 0, 0)));
-    }
-
-    private void DrawFloorSurface(GL api)
-    {
-        if (!_floorGuideVisible || _floorVertexArray == 0 || _floorSurfaceVertexCount == 0)
-        {
-            return;
-        }
-
-        api.Uniform1(_useSkinningLocation, 0);
-        api.Uniform1(_hasTextureLocation, 0);
-        api.Uniform1(_hasMaskLocation, 0);
-        api.Uniform1(_hasNormalLocation, 0);
-        api.Uniform1(_hasMultiLocation, 0);
-        api.Uniform4(_colorChannelsLocation, 0f, 0f, 0f, 0f);
-        api.Uniform1(_multiplyColorLocation, 0);
-        api.Uniform1(_alphaCutoffLocation, 0f);
-        api.Uniform1(_blendModeLocation, (int)MaterialBlendMode.AlphaBlend);
-        api.DepthMask(true);
-        api.Enable(EnableCap.Blend);
-        api.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-        api.BindVertexArray(_floorVertexArray);
-
-        var lightBackground =
-            _background.X * 0.2126f +
-            _background.Y * 0.7152f +
-            _background.Z * 0.0722f > 0.45f;
-        if (lightBackground)
-        {
-            api.Uniform4(_baseColorLocation, 0.08f, 0.11f, 0.16f, 0.16f);
-        }
-        else
-        {
-            api.Uniform4(_baseColorLocation, 0.48f, 0.54f, 0.64f, 0.18f);
-        }
-        api.DrawArrays(PrimitiveType.Triangles, 0, _floorSurfaceVertexCount);
-        api.BindVertexArray(0);
-        api.Disable(EnableCap.Blend);
-    }
-
-    private void DrawFloorGrid(GL api)
-    {
-        if (!_floorGuideVisible || _floorVertexArray == 0 || _floorGridVertexCount == 0)
-        {
-            return;
-        }
-
-        api.Uniform1(_useSkinningLocation, 0);
-        api.Uniform1(_hasTextureLocation, 0);
-        api.Uniform1(_hasMaskLocation, 0);
-        api.Uniform1(_hasNormalLocation, 0);
-        api.Uniform1(_hasMultiLocation, 0);
-        api.Uniform4(_colorChannelsLocation, 0f, 0f, 0f, 0f);
-        api.Uniform1(_multiplyColorLocation, 0);
-        api.Uniform1(_alphaCutoffLocation, 0f);
-        api.Uniform1(_blendModeLocation, (int)MaterialBlendMode.AlphaBlend);
-        api.DepthMask(false);
-        api.Enable(EnableCap.Blend);
-        api.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-        api.BindVertexArray(_floorVertexArray);
-
-        var lightBackground =
-            _background.X * 0.2126f +
-            _background.Y * 0.7152f +
-            _background.Z * 0.0722f > 0.45f;
-        if (lightBackground)
-        {
-            api.Uniform4(_baseColorLocation, 0.08f, 0.11f, 0.16f, 0.62f);
-        }
-        else
-        {
-            api.Uniform4(_baseColorLocation, 0.56f, 0.63f, 0.74f, 0.68f);
-        }
-        api.DrawArrays(PrimitiveType.Lines, (int)_floorGridFirstVertex, _floorGridVertexCount);
-
-        // The two center axes are stronger than the ordinary grid so the
-        // actual zero crossing remains recognizable at oblique camera angles.
-        api.Uniform4(_baseColorLocation, 0.27f, 0.55f, 0.92f, 0.88f);
-        api.DrawArrays(PrimitiveType.Lines, (int)_floorAxisFirstVertex, _floorAxisVertexCount);
-        api.BindVertexArray(0);
-        api.Disable(EnableCap.Blend);
-        api.DepthMask(true);
     }
 
     private static unsafe void ConfigureVertexAttributes(GL api)
@@ -991,6 +741,16 @@ public sealed class ModelViewport : OpenGlControlBase
 
     private void DeleteMeshes(GL api)
     {
+        DeleteMeshBuffers(api);
+        foreach (var texture in _gpuTextures.Values)
+        {
+            api.DeleteTexture(texture);
+        }
+        _gpuTextures.Clear();
+    }
+
+    private void DeleteMeshBuffers(GL api)
+    {
         foreach (var mesh in _gpuMeshes)
         {
             api.DeleteVertexArray(mesh.VertexArray);
@@ -999,91 +759,43 @@ public sealed class ModelViewport : OpenGlControlBase
         }
 
         _gpuMeshes.Clear();
-        foreach (var texture in _gpuTextures.Values)
-        {
-            api.DeleteTexture(texture);
-        }
-        _gpuTextures.Clear();
     }
 
-    private void DeleteFloorGuide(GL api)
+    /// <summary>
+    /// Frees cached textures no mesh in the rebuilt scene samples anymore.
+    /// A model hidden with the eye toggle gives its VRAM back here and pays
+    /// one re-upload when shown again.
+    /// </summary>
+    private void PruneUnusedTextures(GL api)
     {
-        if (_floorVertexArray != 0)
+        var used = new HashSet<uint>(_gpuMeshes.Count * 4);
+        foreach (var mesh in _gpuMeshes)
         {
-            api.DeleteVertexArray(_floorVertexArray);
-            _floorVertexArray = 0;
+            used.Add(mesh.Texture);
+            used.Add(mesh.MaskTexture);
+            used.Add(mesh.NormalTexture);
+            used.Add(mesh.MultiTexture);
         }
 
-        if (_floorVertexBuffer != 0)
+        List<(RenderTexture Texture, bool Srgb)>? stale = null;
+        foreach (var pair in _gpuTextures)
         {
-            api.DeleteBuffer(_floorVertexBuffer);
-            _floorVertexBuffer = 0;
+            if (!used.Contains(pair.Value))
+            {
+                (stale ??= []).Add(pair.Key);
+            }
         }
 
-        _floorSurfaceVertexCount = 0;
-        _floorGridFirstVertex = 0;
-        _floorGridVertexCount = 0;
-        _floorAxisFirstVertex = 0;
-        _floorAxisVertexCount = 0;
-    }
-
-    private Matrix4x4 BuildViewProjection(float aspect)
-    {
-        var view = Matrix4x4.CreateLookAt(CameraPosition(), _focus, Vector3.UnitY);
-        var projection = Matrix4x4.CreatePerspectiveFieldOfView(
-            45f * MathF.PI / 180f,
-            Math.Max(aspect, 0.01f),
-            0.01f,
-            100f);
-        return view * projection;
-    }
-
-    private Vector3 CameraPosition()
-    {
-        var horizontal = MathF.Cos(_pitch) * _distance;
-        return _focus + new Vector3(
-            MathF.Sin(_yaw) * horizontal,
-            MathF.Sin(_pitch) * _distance,
-            MathF.Cos(_yaw) * horizontal);
-    }
-
-    private static unsafe uint CreateProgram(GL api, string vertexSource, string fragmentSource)
-    {
-        var vertex = CompileShader(api, ShaderType.VertexShader, vertexSource);
-        var fragment = CompileShader(api, ShaderType.FragmentShader, fragmentSource);
-        var program = api.CreateProgram();
-        api.AttachShader(program, vertex);
-        api.AttachShader(program, fragment);
-        api.LinkProgram(program);
-        api.GetProgram(program, ProgramPropertyARB.LinkStatus, out var linked);
-        var log = api.GetProgramInfoLog(program);
-        api.DetachShader(program, vertex);
-        api.DetachShader(program, fragment);
-        api.DeleteShader(vertex);
-        api.DeleteShader(fragment);
-        if (linked == 0)
+        if (stale is null)
         {
-            api.DeleteProgram(program);
-            throw new InvalidOperationException($"OpenGL program link failed: {log}");
+            return;
         }
 
-        return program;
-    }
-
-    private static uint CompileShader(GL api, ShaderType type, string source)
-    {
-        var shader = api.CreateShader(type);
-        api.ShaderSource(shader, source);
-        api.CompileShader(shader);
-        api.GetShader(shader, ShaderParameterName.CompileStatus, out var compiled);
-        var log = api.GetShaderInfoLog(shader);
-        if (compiled == 0)
+        foreach (var key in stale)
         {
-            api.DeleteShader(shader);
-            throw new InvalidOperationException($"{type} compilation failed: {log}");
+            api.DeleteTexture(_gpuTextures[key]);
+            _gpuTextures.Remove(key);
         }
-
-        return shader;
     }
 
     private static Matrix4x4[] IdentityBones()
@@ -1134,177 +846,6 @@ public sealed class ModelViewport : OpenGlControlBase
             MaterialBlendMode.AlphaBlend or MaterialBlendMode.Additive;
     }
 
-    private enum PointerMode
-    {
-        None,
-        Rotate,
-        VerticalMove,
-    }
-
-    private const string VertexShader = """
-        #version 300 es
-        precision highp float;
-        precision highp int;
-        layout(location = 0) in vec3 aPosition;
-        layout(location = 1) in vec3 aNormal;
-        layout(location = 2) in vec2 aUv1;
-        layout(location = 3) in vec2 aUv2;
-        layout(location = 4) in vec2 aUv3;
-        layout(location = 5) in vec4 aWeights;
-        layout(location = 6) in uvec4 aBones;
-
-        layout(std140) uniform Bones
-        {
-            mat4 uBones[256];
-        };
-
-        uniform mat4 uViewProjection;
-        uniform bool uUseSkinning;
-        out vec3 vNormal;
-        out vec3 vPosition;
-        out vec2 vUv1;
-        out vec2 vUv2;
-        out vec2 vUv3;
-
-        void main()
-        {
-            mat4 skin = mat4(1.0);
-            if (uUseSkinning)
-            {
-                skin =
-                    aWeights.x * uBones[aBones.x] +
-                    aWeights.y * uBones[aBones.y] +
-                    aWeights.z * uBones[aBones.z] +
-                    aWeights.w * uBones[aBones.w];
-            }
-            vec4 position = skin * vec4(aPosition, 1.0);
-            vNormal = normalize(mat3(skin) * aNormal);
-            vPosition = position.xyz;
-            // Aqua stores PSO2 V downward. DDS rows are uploaded bottom-up,
-            // so this is the same conversion used by the Blender importer.
-            vUv1 = vec2(aUv1.x, 1.0 - aUv1.y);
-            vUv2 = vec2(aUv2.x, 1.0 - aUv2.y);
-            vUv3 = vec2(aUv3.x, 1.0 - aUv3.y);
-            gl_Position = uViewProjection * position;
-        }
-        """;
-
-    private const string FragmentShader = """
-        #version 300 es
-        precision highp float;
-        precision highp int;
-        in vec3 vNormal;
-        in vec3 vPosition;
-        in vec2 vUv1;
-        in vec2 vUv2;
-        in vec2 vUv3;
-        uniform vec3 uLightDirection;
-        uniform vec3 uCameraPosition;
-        uniform vec4 uBaseColor;
-        uniform bool uHasTexture;
-        uniform sampler2D uDiffuseTexture;
-        uniform bool uHasMask;
-        uniform sampler2D uMaskTexture;
-        uniform bool uHasNormal;
-        uniform sampler2D uNormalTexture;
-        uniform bool uHasMulti;
-        uniform sampler2D uMultiTexture;
-        uniform int uDiffuseUvSet;
-        uniform int uMaskUvSet;
-        uniform int uNormalUvSet;
-        uniform int uMultiUvSet;
-        uniform vec4 uColor1;
-        uniform vec4 uColor2;
-        uniform vec4 uColor3;
-        uniform vec4 uColor4;
-        uniform vec4 uColorChannels;
-        uniform bool uMultiplyColor;
-        uniform float uAlphaCutoff;
-        uniform int uBlendMode;
-        out vec4 FragColor;
-
-        vec3 colorize(vec3 inputColor, vec3 target, float factor)
-        {
-            vec3 result = uMultiplyColor ? inputColor * target : target;
-            return mix(inputColor, result, clamp(factor, 0.0, 1.0));
-        }
-
-        vec2 selectUv(int setIndex)
-        {
-            if (setIndex == 1)
-            {
-                return vUv2;
-            }
-            if (setIndex == 2)
-            {
-                return vUv3;
-            }
-            return vUv1;
-        }
-
-        vec3 mappedNormal(vec3 geometryNormal)
-        {
-            vec2 normalUv = selectUv(uNormalUvSet);
-            vec3 tangentNormal = texture(uNormalTexture, normalUv).xyz * 2.0 - 1.0;
-            vec3 positionDx = dFdx(vPosition);
-            vec3 positionDy = dFdy(vPosition);
-            vec2 uvDx = dFdx(normalUv);
-            vec2 uvDy = dFdy(normalUv);
-            vec3 tangent = normalize(positionDx * uvDy.y - positionDy * uvDx.y);
-            vec3 bitangent = normalize(-positionDx * uvDy.x + positionDy * uvDx.x);
-            return normalize(mat3(tangent, bitangent, geometryNormal) * tangentNormal);
-        }
-
-        void main()
-        {
-            vec3 normal = normalize(vNormal);
-            if (uHasNormal)
-            {
-                normal = mappedNormal(normal);
-            }
-
-            float diffuse = max(dot(normal, normalize(uLightDirection)), 0.0);
-            float hemisphere = 0.38 + 0.22 * (normal.y * 0.5 + 0.5);
-            vec4 albedo = uHasTexture
-                ? texture(uDiffuseTexture, selectUv(uDiffuseUvSet))
-                : uBaseColor;
-            if (uHasMask)
-            {
-                vec4 mask = texture(uMaskTexture, selectUv(uMaskUvSet)) * uColorChannels;
-                albedo.rgb = colorize(albedo.rgb, uColor1.rgb, mask.r);
-                albedo.rgb = colorize(albedo.rgb, uColor2.rgb, mask.g);
-                albedo.rgb = colorize(albedo.rgb, uColor3.rgb, mask.b);
-                albedo.rgb = colorize(albedo.rgb, uColor4.rgb, mask.a);
-            }
-            // 0=opaque, 1=cutout/hollow, 2=blendalpha, 3=add. Cutout uses
-            // PSO2's strict "above threshold" rule, so alpha zero is rejected
-            // even when the stored cutoff is zero.
-            if (uBlendMode == 1 && albedo.a <= uAlphaCutoff)
-            {
-                discard;
-            }
-
-            vec4 multi = uHasMulti
-                ? texture(uMultiTexture, selectUv(uMultiUvSet))
-                : vec4(0.0, 0.56, 1.0, 0.0);
-            float ambientOcclusion = uHasMulti ? multi.b : 1.0;
-            float roughness = mix(0.2, 1.0, multi.g);
-            float metallic = multi.r;
-            vec3 viewDirection = normalize(uCameraPosition - vPosition);
-            vec3 halfDirection = normalize(normalize(uLightDirection) + viewDirection);
-            float specularPower = mix(96.0, 6.0, roughness);
-            float specular = pow(max(dot(normal, halfDirection), 0.0), specularPower);
-            vec3 specularColor = mix(vec3(0.04), albedo.rgb, metallic);
-            vec3 lit = albedo.rgb * (hemisphere * ambientOcclusion + diffuse * 0.55) +
-                       specularColor * specular * (0.2 + metallic * 0.35);
-            vec3 outColor = lit + albedo.rgb * multi.a;
-            // Textures are sampled through SRGB8 (linear values) and the
-            // palette arrives linear, but the swapchain is not an sRGB
-            // target - encode on the way out or every midtone reads dark.
-            float outputAlpha = uBlendMode >= 2 ? albedo.a : 1.0;
-            FragColor = vec4(pow(clamp(outColor, 0.0, 1.0), vec3(1.0 / 2.2)), outputAlpha);
-        }
-        """;
 }
 
 public sealed record ViewportStatistics(

@@ -41,6 +41,14 @@ public sealed class ModelCatalog
 {
     private const int SchemaVersion = 4;
 
+    /// <summary>Column order shared by every reader; must match ReadRecord.</summary>
+    private const string RecordColumns = """
+        object_type, id, adjusted_id, name_jp, name_en,
+               file_name, hash, ex_file_name, ex_hash,
+               linked_inner_id, linked_outer_id,
+               color_red, color_green, color_blue, color_alpha
+        """;
+
     /// <summary>
     /// The only object types the search UI offers. Everything else stays in
     /// the catalog (the skin dictionary feeds the texture path, for one) but
@@ -130,10 +138,7 @@ public sealed class ModelCatalog
         }
 
         command.CommandText = $"""
-            SELECT object_type, id, adjusted_id, name_jp, name_en,
-                   file_name, hash, ex_file_name, ex_hash,
-                   linked_inner_id, linked_outer_id,
-                   color_red, color_green, color_blue, color_alpha
+            SELECT {RecordColumns}
             FROM objects
             {(predicates.Count == 0 ? "" : "WHERE " + string.Join(" AND ", predicates))}
             ORDER BY CASE WHEN CAST(id AS TEXT) = $query THEN 0 ELSE 1 END,
@@ -143,30 +148,7 @@ public sealed class ModelCatalog
         command.Parameters.AddWithValue("$query", query ?? "");
         command.Parameters.AddWithValue("$limit", limit);
 
-        using var reader = command.ExecuteReader();
-        var result = new List<ModelCatalogRecord>();
-        while (reader.Read())
-        {
-            result.Add(new ModelCatalogRecord(
-                reader.GetString(0),
-                reader.GetInt32(1),
-                reader.GetInt32(2),
-                reader.GetString(3),
-                reader.GetString(4),
-                reader.GetString(5),
-                reader.GetString(6),
-                reader.IsDBNull(7) ? null : reader.GetString(7),
-                reader.IsDBNull(8) ? null : reader.GetString(8),
-                reader.IsDBNull(9) ? null : reader.GetInt32(9),
-                reader.IsDBNull(10) ? null : reader.GetInt32(10),
-                new ModelColorMapping(
-                    reader.GetInt32(11),
-                    reader.GetInt32(12),
-                    reader.GetInt32(13),
-                    reader.GetInt32(14))));
-        }
-
-        return result;
+        return ReadRecords(command);
     }
 
     public IReadOnlyList<ModelCatalogRecord> GetByObjectType(string objectType)
@@ -174,41 +156,15 @@ public sealed class ModelCatalog
         ArgumentException.ThrowIfNullOrWhiteSpace(objectType);
         using var connection = OpenReadOnly();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT object_type, id, adjusted_id, name_jp, name_en,
-                   file_name, hash, ex_file_name, ex_hash,
-                   linked_inner_id, linked_outer_id,
-                   color_red, color_green, color_blue, color_alpha
+        command.CommandText = $"""
+            SELECT {RecordColumns}
             FROM objects
             WHERE object_type = $type
             ORDER BY id
             """;
         command.Parameters.AddWithValue("$type", objectType);
 
-        using var reader = command.ExecuteReader();
-        var result = new List<ModelCatalogRecord>();
-        while (reader.Read())
-        {
-            result.Add(new ModelCatalogRecord(
-                reader.GetString(0),
-                reader.GetInt32(1),
-                reader.GetInt32(2),
-                reader.GetString(3),
-                reader.GetString(4),
-                reader.GetString(5),
-                reader.GetString(6),
-                reader.IsDBNull(7) ? null : reader.GetString(7),
-                reader.IsDBNull(8) ? null : reader.GetString(8),
-                reader.IsDBNull(9) ? null : reader.GetInt32(9),
-                reader.IsDBNull(10) ? null : reader.GetInt32(10),
-                new ModelColorMapping(
-                    reader.GetInt32(11),
-                    reader.GetInt32(12),
-                    reader.GetInt32(13),
-                    reader.GetInt32(14))));
-        }
-
-        return result;
+        return ReadRecords(command);
     }
 
     /// <summary>One record by exact type and id - how a linked
@@ -217,23 +173,31 @@ public sealed class ModelCatalog
     {
         using var connection = OpenReadOnly();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT object_type, id, adjusted_id, name_jp, name_en,
-                   file_name, hash, ex_file_name, ex_hash,
-                   linked_inner_id, linked_outer_id,
-                   color_red, color_green, color_blue, color_alpha
+        command.CommandText = $"""
+            SELECT {RecordColumns}
             FROM objects
             WHERE object_type = $type AND id = $id
             """;
         command.Parameters.AddWithValue("$type", objectType);
         command.Parameters.AddWithValue("$id", id);
         using var reader = command.ExecuteReader();
-        if (!reader.Read())
+        return reader.Read() ? ReadRecord(reader) : null;
+    }
+
+    private static List<ModelCatalogRecord> ReadRecords(SqliteCommand command)
+    {
+        using var reader = command.ExecuteReader();
+        var result = new List<ModelCatalogRecord>();
+        while (reader.Read())
         {
-            return null;
+            result.Add(ReadRecord(reader));
         }
 
-        return new ModelCatalogRecord(
+        return result;
+    }
+
+    private static ModelCatalogRecord ReadRecord(SqliteDataReader reader) =>
+        new(
             reader.GetString(0),
             reader.GetInt32(1),
             reader.GetInt32(2),
@@ -250,7 +214,6 @@ public sealed class ModelCatalog
                 reader.GetInt32(12),
                 reader.GetInt32(13),
                 reader.GetInt32(14)));
-    }
 
     public static ModelCatalogBuildResult BuildFromGame(
         Pso2DataLocator locator,

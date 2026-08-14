@@ -61,6 +61,7 @@
                 <DataTemplate x:DataType="local:ModelEntry">
                   <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" Margin="2,2">
                     <CheckBox IsChecked="{Binding Visible}" Content="{Binding DisplayName}"
+                              ToolTip.Tip="{Binding Model.SourcePath}"
                               VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="×" Width="28" Height="26" Padding="0"
                             FontSize="16" ToolTip.Tip="{Binding RemoveLabel}"
@@ -136,7 +137,7 @@
               <ListBox x:Name="ModelSearchResultsList" ItemsSource="{Binding SearchResults}">
                 <ListBox.ItemTemplate>
                   <DataTemplate x:DataType="local:ModelSearchResultViewModel">
-                    <StackPanel Margin="4,3" Spacing="1">
+                    <StackPanel Margin="4,3" Spacing="1" ToolTip.Tip="{Binding ResolvedPath}">
                       <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
                       <TextBlock Text="{Binding Metadata}" Foreground="{DynamicResource MutedTextBrush}" FontSize="10"
                                  TextTrimming="CharacterEllipsis" />

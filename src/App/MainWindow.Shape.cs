@@ -63,7 +63,7 @@ public partial class MainWindow : Window
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = L(AppText.AqmSaveTitle),
-            SuggestedFileName = "shape_sa.aqm",
+            SuggestedFileName = SuggestedShapeFileName(),
             DefaultExtension = "aqm",
             FileTypeChoices = [new FilePickerFileType(L(AppText.AqmFileType)) { Patterns = ["*.aqm"] }],
         });
@@ -87,6 +87,28 @@ public partial class MainWindow : Window
         {
             StatusText.Text = L(AppText.AqmSaveFailed, exception.Message);
         }
+    }
+
+    /// <summary>
+    /// The game only picks up the adjustment when the file keeps the name of
+    /// the entry inside the outfit's ICE, so the save dialog suggests
+    /// "pl_rbd_XXXXXX_bw_sa.aqm" derived from the first loaded model instead
+    /// of a generic name the user would have to correct by hand.
+    /// </summary>
+    private string SuggestedShapeFileName()
+    {
+        var sourcePath = Models.FirstOrDefault()?.Model.SourcePath;
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            return "shape_sa.aqm";
+        }
+
+        var marker = sourcePath.LastIndexOf("::", StringComparison.Ordinal);
+        var entryName = marker >= 0
+            ? sourcePath[(marker + 2)..]
+            : Path.GetFileName(sourcePath);
+        var stem = Path.GetFileNameWithoutExtension(entryName);
+        return string.IsNullOrWhiteSpace(stem) ? "shape_sa.aqm" : $"{stem}_sa.aqm";
     }
 
     private void ResetShape(object? sender, RoutedEventArgs e)
