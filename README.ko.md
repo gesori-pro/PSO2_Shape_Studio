@@ -166,6 +166,22 @@ PSO2 게임 에셋, 추출된 모델, 텍스처 및 캐릭터 파일은 이 저�
 - 내장된 영어·일본어 아이템 이름 표는 PSO2NGS Mod Manager 아이템 데이터로부터
   생성되었습니다.
 
+## 감사의 말
+
+이 프로젝트는 다른 사람들이 기꺼이 공개해 준 수년간의 리버스 엔지니어링
+성과 위에 서 있습니다.
+
+- **[Shadowth117](https://github.com/Shadowth117)** —
+  [PSO2-Aqua-Library](https://github.com/Shadowth117/PSO2-Aqua-Library),
+  [Aqua-Toolset](https://github.com/Shadowth117/Aqua-Toolset),
+  [Zamboni](https://github.com/Shadowth117/Zamboni)의 저자.
+  이 프로그램이 여는 모든 PSO2 파일은 그의 작업을 통해 해석됩니다.
+  무한한 감사를 드립니다.
+- **[dummycount](https://github.com/dummycount)** —
+  [blender_pso2_tools](https://github.com/dummycount/blender_pso2_tools)의
+  저자. PSO2 모델을 현대적인 도구에서 어떻게 다뤄야 하는지 보여주었습니다.
+  무한한 감사를 드립니다.
+
 ## 라이선스
 
 PSO2 Shape Studio는 GNU General Public License version 3 조건에 따라 배포됩니다.

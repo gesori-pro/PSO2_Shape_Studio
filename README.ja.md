@@ -170,6 +170,22 @@ PSO2のゲームアセット、展開済みモデル、テクスチャー、キ�
 - 内蔵されている英語・日本語のアイテム名テーブルは、PSO2NGS Mod Managerの
   アイテムデータから生成されています。
 
+## 謝辞
+
+このプロジェクトは、惜しみなく公開された長年のリバースエンジニアリングの
+成果の上に成り立っています。
+
+- **[Shadowth117](https://github.com/Shadowth117)** —
+  [PSO2-Aqua-Library](https://github.com/Shadowth117/PSO2-Aqua-Library)、
+  [Aqua-Toolset](https://github.com/Shadowth117/Aqua-Toolset)、
+  [Zamboni](https://github.com/Shadowth117/Zamboni)の作者。
+  本アプリケーションが開くすべてのPSO2ファイルは、氏の成果によって
+  解釈されています。限りない感謝を。
+- **[dummycount](https://github.com/dummycount)** —
+  [blender_pso2_tools](https://github.com/dummycount/blender_pso2_tools)の
+  作者。PSO2モデルを現代的なツールでどう扱うべきかを示してくれました。
+  限りない感謝を。
+
 ## ライセンス
 
 PSO2 Shape StudioはGNU General Public License version 3の条件に基づいて

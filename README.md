@@ -170,6 +170,21 @@ computer and does not upload game data.
 - The embedded English and Japanese item-name table is generated from
   PSO2NGS Mod Manager item data.
 
+## Acknowledgements
+
+This project stands on years of reverse-engineering work that others chose
+to share freely.
+
+- **[Shadowth117](https://github.com/Shadowth117)** — author of
+  [PSO2-Aqua-Library](https://github.com/Shadowth117/PSO2-Aqua-Library),
+  [Aqua-Toolset](https://github.com/Shadowth117/Aqua-Toolset), and
+  [Zamboni](https://github.com/Shadowth117/Zamboni). Every PSO2 file this
+  application opens is understood through his work. Boundless thanks.
+- **[dummycount](https://github.com/dummycount)** — author of
+  [blender_pso2_tools](https://github.com/dummycount/blender_pso2_tools),
+  which showed how PSO2 models should live inside a modern toolchain.
+  Boundless thanks.
+
 ## License
 
 PSO2 Shape Studio is distributed under the terms of the GNU General Public

@@ -151,6 +151,19 @@ dotnet run --project src/App/Pso2ShapeStudio.App.csproj -c Release -p:Platform=x
   處理 PSO2 格式與 ICE 資料所需的原始碼相依項目。
 - 內建的英日文物品名稱表由 PSO2NGS Mod Manager 的物品資料產生。
 
+## 致謝
+
+本專案建立在他人多年無私公開的逆向工程成果之上。
+
+- **[Shadowth117](https://github.com/Shadowth117)** ——
+  [PSO2-Aqua-Library](https://github.com/Shadowth117/PSO2-Aqua-Library)、
+  [Aqua-Toolset](https://github.com/Shadowth117/Aqua-Toolset) 與
+  [Zamboni](https://github.com/Shadowth117/Zamboni) 的作者。本程式開啟的
+  每一個 PSO2 檔案，都是透過他的成果得以解讀。無盡感謝。
+- **[dummycount](https://github.com/dummycount)** ——
+  [blender_pso2_tools](https://github.com/dummycount/blender_pso2_tools)
+  的作者，展示了 PSO2 模型在現代工具鏈中應有的處理方式。無盡感謝。
+
 ## 授權
 
 PSO2 Shape Studio 依 GNU General Public License 第 3 版的條款散布。詳見
