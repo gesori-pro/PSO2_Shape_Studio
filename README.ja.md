@@ -6,7 +6,7 @@ PSO2 Shape Studioは、コスチューム体型補正AQM（`_sa.aqm`）を使っ
 PSO2:NGSのキャラクター体型を後から微調整するユーザー向けのWindowsデスクトップ
 ツールです。Blenderを使わずに、モデルを確認しながら体型補正を適用・編集・保存できます。
 
-> **現在のバージョン：** [1.2.0](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.2.0)。
+> **現在のバージョン：** [1.3.0](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.3.0)。
 > 最新の自己完結型Windows x64ビルドは、リリースページからダウンロードできます。
 
 ## 機能
