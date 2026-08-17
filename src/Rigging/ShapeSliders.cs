@@ -3,6 +3,42 @@ using Pso2ShapeStudio.Formats;
 
 namespace Pso2ShapeStudio.Rigging;
 
+/// <summary>
+/// A bone that follows a group's scale but not its rotation or position.
+///
+/// PSO2 flags most bones inherit-scale-none, so scaling a parent moves its
+/// children without resizing them - measured on the reference skeleton, 106 of
+/// 223 bones are flagged this way, including every finger. Rotation and
+/// translation still pass down the hierarchy, which is why turning a hand
+/// carries the fingers with it while enlarging one only inflates the palm.
+/// The game solves this by listing each bone in its own slider table; a
+/// follower is the same idea.
+///
+/// The multiplier is linear in the group's deviation from 1, with separate
+/// slopes below and above it, because the game does not treat the two
+/// directions alike: the wrist thins in step with the hand but thickens only
+/// half as much.
+/// </summary>
+public sealed record ShapeScaleFollower(
+    string LeftBone,
+    string? RightBone,
+    Vector3 WhenShrinking,
+    Vector3 WhenGrowing)
+{
+    public ShapeScaleFollower(string leftBone, string? rightBone)
+        : this(leftBone, rightBone, Vector3.One, Vector3.One)
+    {
+    }
+
+    public Vector3 ScaleFor(Vector3 groupScale) => new(
+        Axis(groupScale.X, WhenShrinking.X, WhenGrowing.X),
+        Axis(groupScale.Y, WhenShrinking.Y, WhenGrowing.Y),
+        Axis(groupScale.Z, WhenShrinking.Z, WhenGrowing.Z));
+
+    private static float Axis(float value, float shrinking, float growing) =>
+        1f + ((value - 1f) * (value < 1f ? shrinking : growing));
+}
+
 public sealed record ShapeGroupDefinition(
     string Key,
     string Label,
@@ -17,7 +53,11 @@ public sealed record ShapeGroupDefinition(
     bool SupportsScaleZ = true,
     double ScaleMinimum = 0.1,
     double ScaleMaximum = 4.0,
-    double ScaleStep = 0.01);
+    double ScaleStep = 0.01,
+    IReadOnlyList<ShapeScaleFollower>? ScaleFollowers = null)
+{
+    public IReadOnlyList<ShapeScaleFollower> Followers => ScaleFollowers ?? [];
+}
 
 public sealed record CustomShapeGroupDefinition(
     string Key,
@@ -103,7 +143,66 @@ public static class ShapeSliders
         Group("calf0", "Calf Upper", "l_calf0_alt", "r_calf0_alt", ("l_calf0_alt", 55), ("r_calf0_alt", 66)),
         Group("calf", "Calf", "l_calf_alt", "r_calf_alt", ("l_calf_alt", 56), ("r_calf_alt", 67)),
         Group("foot", "Foot", "l_foot_alt", "r_foot_alt", ("l_foot_alt", 57), ("r_foot_alt", 68)),
+        HandGroup(),
     ];
+
+    /// <summary>
+    /// Hand size, matching the 43 bones the game's own hands slider drives:
+    /// both palms, all 38 finger joints, the weapon offset, and the forearm
+    /// twists. Scaling the palms alone only inflates the palms, because the
+    /// fingers do not inherit scale - see <see cref="ShapeScaleFollower"/>.
+    ///
+    /// Measured from the slider table, every bone but the forearm takes the
+    /// palm's multiplier unchanged. The forearm twist keeps its length (X) and
+    /// follows on thickness only, fully when shrinking and at half when
+    /// growing.
+    /// </summary>
+    private static ShapeGroupDefinition HandGroup()
+    {
+        // Kept local: static field initialisers run in declaration order, and
+        // Groups above would read this one before it was assigned.
+        (string Suffix, int Left, int Right)[] fingerBones =
+        [
+            ("00", 74, 99), ("01", 75, 100), ("02", 76, 101),
+            ("10", 77, 102), ("11", 78, 103), ("12", 79, 104), ("13", 80, 105),
+            ("20", 81, 106), ("21", 82, 107), ("22", 83, 108), ("23", 84, 109),
+            ("30", 85, 110), ("31", 86, 111), ("32", 87, 112), ("33", 88, 113),
+            ("40", 89, 114), ("41", 90, 115), ("42", 91, 116), ("43", 92, 117),
+        ];
+        var nodeIds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["l_hand"] = 27,
+            ["r_hand"] = 35,
+            ["l_forearm_tw"] = 26,
+            ["r_forearm_tw"] = 34,
+            ["c_weapon_offset2"] = 38,
+        };
+        var followers = new List<ShapeScaleFollower>
+        {
+            new("c_weapon_offset2", null),
+            new(
+                "l_forearm_tw",
+                "r_forearm_tw",
+                WhenShrinking: new Vector3(0f, 1f, 1f),
+                WhenGrowing: new Vector3(0f, 0.5f, 0.5f)),
+        };
+        foreach (var (suffix, left, right) in fingerBones)
+        {
+            var leftName = $"l_finger_{suffix}";
+            var rightName = $"r_finger_{suffix}";
+            nodeIds[leftName] = left;
+            nodeIds[rightName] = right;
+            followers.Add(new ShapeScaleFollower(leftName, rightName));
+        }
+
+        return new ShapeGroupDefinition(
+            "hand",
+            "Hand",
+            "l_hand",
+            "r_hand",
+            nodeIds,
+            ScaleFollowers: followers);
+    }
 
     public static IReadOnlyList<ShapeGroupDefinition> ConfigureGroups(
         IEnumerable<string>? hiddenBuiltInKeys,
@@ -159,26 +258,51 @@ public static class ShapeSliders
         var composer = new BodyPoseComposer(skeleton);
         foreach (var group in groups ?? Groups)
         {
-            var value = profile[group.Key];
-            if (value.IsIdentity)
-            {
-                continue;
-            }
-
-            var quaternion = EulerDegreesToQuaternion(value.EulerDegrees);
-            ApplySide(composer, group.LeftBone, value.Scale, value.Position, quaternion);
-            if (group.RightBone is not null)
-            {
-                ApplySide(
-                    composer,
-                    group.RightBone,
-                    value.Scale,
-                    MirrorPosition(value.Position),
-                    MirrorQuaternion(quaternion));
-            }
+            ApplyGroup(composer, group, profile[group.Key]);
         }
 
         return composer.Build();
+    }
+
+    /// <summary>
+    /// Writes one group's edit onto a composer: the paired bones take the full
+    /// transform, and any followers take scale only. Both the viewport pose and
+    /// the saved AQM go through here so a group cannot pick up followers in one
+    /// path and lose them in the other.
+    /// </summary>
+    public static void ApplyGroup(
+        BodyPoseComposer composer,
+        ShapeGroupDefinition group,
+        ShapeValue value)
+    {
+        if (value.IsIdentity)
+        {
+            return;
+        }
+
+        var quaternion = EulerDegreesToQuaternion(value.EulerDegrees);
+        ApplySide(composer, group.LeftBone, value.Scale, value.Position, quaternion);
+        if (group.RightBone is not null)
+        {
+            ApplySide(
+                composer,
+                group.RightBone,
+                value.Scale,
+                MirrorPosition(value.Position),
+                MirrorQuaternion(quaternion));
+        }
+
+        foreach (var follower in group.Followers)
+        {
+            // Scale only: rotation and position already reach these bones
+            // through the hierarchy, and applying them again would double up.
+            var scale = follower.ScaleFor(value.Scale);
+            ApplySide(composer, follower.LeftBone, scale, Vector3.Zero, Quaternion.Identity);
+            if (follower.RightBone is not null)
+            {
+                ApplySide(composer, follower.RightBone, scale, Vector3.Zero, Quaternion.Identity);
+            }
+        }
     }
 
     public static Quaternion EulerDegreesToQuaternion(Vector3 degrees)

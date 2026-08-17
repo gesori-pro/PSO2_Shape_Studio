@@ -158,7 +158,8 @@
         "thightw2": "大腿扭转 2",
         "calf0": "小腿上部",
         "calf": "小腿",
-        "foot": "足部"
+        "foot": "足部",
+        "hand": "手"
     },
     "objectTypes": {
         "accessory": "饰品",

@@ -291,21 +291,7 @@ public partial class MainWindow : Window
 
         foreach (var group in activeGroups)
         {
-            var value = _profile[group.Key];
-            if (value.IsIdentity)
-            {
-                continue;
-            }
-
-            var rotation = ShapeSliders.EulerDegreesToQuaternion(value.EulerDegrees);
-            composer.SetShape(group.LeftBone, new BoneDelta(value.Scale, value.Position, rotation));
-            if (group.RightBone is not null)
-            {
-                composer.SetShape(group.RightBone, new BoneDelta(
-                    value.Scale,
-                    ShapeSliders.MirrorPosition(value.Position),
-                    ShapeSliders.MirrorQuaternion(rotation)));
-            }
+            ShapeSliders.ApplyGroup(composer, group, _profile[group.Key]);
         }
 
         var pose = composer.Build();

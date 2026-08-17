@@ -79,9 +79,12 @@ public sealed class ShapeAdjustFile
         var adjusted = carried?.ToDictionary(pair => pair.Key, pair => pair.Value) ?? [];
         foreach (var group in groups ?? ShapeSliders.Groups)
         {
-            foreach (var nodeId in group.NodeIds.Values)
+            // A slider owns its own bones whether or not it is set: clearing
+            // one is how a carried outfit adjustment gets dropped.
+            Drop(group.LeftBone);
+            if (group.RightBone is not null)
             {
-                adjusted.Remove(nodeId);
+                Drop(group.RightBone);
             }
 
             var value = profile[group.Key];
@@ -90,22 +93,57 @@ public sealed class ShapeAdjustFile
                 continue;
             }
 
+            // Followers belong to an active edit, not to the slider at rest.
+            // Dropping them unconditionally would let an untouched hand slider
+            // strip the finger adjustments an outfit shipped with.
+            foreach (var follower in group.Followers)
+            {
+                Drop(follower.LeftBone);
+                if (follower.RightBone is not null)
+                {
+                    Drop(follower.RightBone);
+                }
+            }
+
+            void Drop(string name)
+            {
+                var nodeId = group.NodeIds.GetValueOrDefault(name, -1);
+                if (nodeId >= 0)
+                {
+                    adjusted.Remove(nodeId);
+                }
+            }
+
             var rotation = ShapeSliders.EulerDegreesToQuaternion(value.EulerDegrees);
-            Put(group.LeftBone, value.Position, rotation);
+            Put(group.LeftBone, value.Scale, value.Position, rotation);
             if (group.RightBone is not null)
             {
                 Put(
                     group.RightBone,
+                    value.Scale,
                     ShapeSliders.MirrorPosition(value.Position),
                     ShapeSliders.MirrorQuaternion(rotation));
             }
 
-            void Put(string name, Vector3 position, Quaternion quaternion)
+            // Followers have to reach the file too. The game reads the scale
+            // off each bone, so a hand written as the two palms alone would
+            // load back with fingers at their original size.
+            foreach (var follower in group.Followers)
+            {
+                var scale = follower.ScaleFor(value.Scale);
+                Put(follower.LeftBone, scale, Vector3.Zero, Quaternion.Identity);
+                if (follower.RightBone is not null)
+                {
+                    Put(follower.RightBone, scale, Vector3.Zero, Quaternion.Identity);
+                }
+            }
+
+            void Put(string name, Vector3 scale, Vector3 position, Quaternion quaternion)
             {
                 var index = group.NodeIds.GetValueOrDefault(name, -1);
                 if (index >= 0)
                 {
-                    adjusted[index] = new ShapeAdjustment(name, value.Scale, position, quaternion);
+                    adjusted[index] = new ShapeAdjustment(name, scale, position, quaternion);
                 }
             }
         }

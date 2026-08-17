@@ -14,12 +14,62 @@ public sealed class ShapeSlidersTests
     private static string FnpPath => TestPaths.FocusliteFnp;
     private static string PoseGoldenPath => TestPaths.GoldenFocuslitePose;
 
+    /// <summary>
+    /// Scaling a hand has to reach the fingers explicitly. They are flagged
+    /// inherit-scale-none, so the palm's scale never propagates and a hand
+    /// group that only drove the palms would inflate the palms alone - which
+    /// is exactly what the game avoids by listing all 43 bones in its own
+    /// hand slider.
+    /// </summary>
+    [ExternalDataFact("PSO2_SHAPE_TEST_DATA")]
+    public void HandGroupScalesFingersAndHalvesTheForearmOnlyWhenGrowing()
+    {
+        var skeleton = AqnSkeleton.Load(AqnPath);
+        var hand = ShapeSliders.Groups.Single(group => group.Key == "hand");
+        Assert.Equal(43, hand.NodeIds.Count);
+
+        Assert.Equal(1.2f, WorldScaleY(skeleton, Scaled(skeleton, 1.2f), "l_finger_13"), 4);
+        Assert.Equal(1.2f, WorldScaleY(skeleton, Scaled(skeleton, 1.2f), "r_finger_43"), 4);
+        Assert.Equal(0.8f, WorldScaleY(skeleton, Scaled(skeleton, 0.8f), "l_finger_00"), 4);
+
+        // The game thickens the wrist at half rate but thins it in full.
+        Assert.Equal(1.1f, WorldScaleY(skeleton, Scaled(skeleton, 1.2f), "l_forearm_tw"), 4);
+        Assert.Equal(0.8f, WorldScaleY(skeleton, Scaled(skeleton, 0.8f), "l_forearm_tw"), 4);
+
+        // Every one of them has to survive into the saved motion, or the game
+        // loads the outfit back with original-size fingers.
+        var profile = new ShapeProfile
+        {
+            ["hand"] = new ShapeValue(new Vector3(1.2f), Vector3.Zero, Vector3.Zero),
+        };
+        var saved = ShapeAdjustFile.Build(skeleton, profile).Adjustments.Values;
+        Assert.Equal(43, saved.Count());
+        Assert.Equal(38, saved.Count(entry => entry.Name.Contains("finger", StringComparison.Ordinal)));
+    }
+
+    private static SkeletonPose Scaled(AqnSkeleton skeleton, float scale)
+    {
+        var profile = new ShapeProfile
+        {
+            ["hand"] = new ShapeValue(new Vector3(scale), Vector3.Zero, Vector3.Zero),
+        };
+        return ShapeSliders.Apply(skeleton, profile);
+    }
+
+    private static float WorldScaleY(AqnSkeleton skeleton, SkeletonPose pose, string boneName)
+    {
+        var bone = skeleton.Bones.Single(candidate =>
+            string.Equals(candidate.Name, boneName, StringComparison.OrdinalIgnoreCase));
+        Assert.True(Matrix4x4.Decompose(pose.WorldMatrices[bone.Index], out var scale, out _, out _));
+        return scale.Y;
+    }
+
     [Fact]
     public void DefinitionsIncludeBodyRootHeightBeforeNormativeShapeGroups()
     {
-        Assert.Equal(15, ShapeSliders.Groups.Count);
+        Assert.Equal(16, ShapeSliders.Groups.Count);
         Assert.Equal(
-            ["bodyroot", "breast", "breast2", "cbreast2", "clav", "waist", "hip", "pelvis", "hiptw", "thigh", "thightw", "thightw2", "calf0", "calf", "foot"],
+            ["bodyroot", "breast", "breast2", "cbreast2", "clav", "waist", "hip", "pelvis", "hiptw", "thigh", "thightw", "thightw2", "calf0", "calf", "foot", "hand"],
             ShapeSliders.Groups.Select(group => group.Key));
         var bodyRoot = ShapeSliders.Groups[0];
         Assert.Equal("body_root", bodyRoot.LeftBone);
