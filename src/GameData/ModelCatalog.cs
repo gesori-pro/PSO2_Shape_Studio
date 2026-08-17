@@ -22,7 +22,8 @@ public sealed record ModelCatalogRecord(
     string? HighQualityHash,
     int? LinkedInnerId = null,
     int? LinkedOuterId = null,
-    ModelColorMapping ColorMapping = default)
+    ModelColorMapping ColorMapping = default,
+    float? LegLength = null)
 {
     public string DisplayName => !string.IsNullOrWhiteSpace(NameEnglish)
         ? NameEnglish
@@ -39,14 +40,15 @@ public sealed record ModelCatalogBuildResult(
 
 public sealed class ModelCatalog
 {
-    private const int SchemaVersion = 4;
+    private const int SchemaVersion = 5;
 
     /// <summary>Column order shared by every reader; must match ReadRecord.</summary>
     private const string RecordColumns = """
         object_type, id, adjusted_id, name_jp, name_en,
                file_name, hash, ex_file_name, ex_hash,
                linked_inner_id, linked_outer_id,
-               color_red, color_green, color_blue, color_alpha
+               color_red, color_green, color_blue, color_alpha,
+               leg_length
         """;
 
     /// <summary>
@@ -213,7 +215,8 @@ public sealed class ModelCatalog
                 reader.GetInt32(11),
                 reader.GetInt32(12),
                 reader.GetInt32(13),
-                reader.GetInt32(14)));
+                reader.GetInt32(14)),
+            reader.IsDBNull(15) ? null : reader.GetFloat(15));
 
     public static ModelCatalogBuildResult BuildFromGame(
         Pso2DataLocator locator,
@@ -302,7 +305,8 @@ public sealed class ModelCatalog
                 AdjustedId(pair.Key, cmx.baseWearIdLink),
                 OptionalId(pair.Value.body2.linkedInnerId),
                 OptionalId(pair.Value.body2.linkedOuterId),
-                ToModelColorMapping(pair.Value.bodyMaskColorMapping));
+                ToModelColorMapping(pair.Value.bodyMaskColorMapping),
+                OptionalLegLength(pair.Value.body2.legLength));
         }
         foreach (var pair in cmx.costumeDict)
         {
@@ -311,7 +315,8 @@ public sealed class ModelCatalog
                 AdjustedId(pair.Key, cmx.costumeIdLink),
                 OptionalId(pair.Value.body2.linkedInnerId),
                 OptionalId(pair.Value.body2.linkedOuterId),
-                ToModelColorMapping(pair.Value.bodyMaskColorMapping));
+                ToModelColorMapping(pair.Value.bodyMaskColorMapping),
+                OptionalLegLength(pair.Value.body2.legLength));
         }
         foreach (var record in CreateRecords(
                      "bodypaint", "b1", cmx.bodyPaintDict.Keys,
@@ -394,7 +399,8 @@ public sealed class ModelCatalog
         int adjustedId,
         int? linkedInnerId = null,
         int? linkedOuterId = null,
-        ModelColorMapping colorMapping = default)
+        ModelColorMapping colorMapping = default,
+        float? legLength = null)
     {
         var prefix = id >= 100000 ? "character/making_reboot/pl_" : "character/making/pl_";
         var fileName = $"{prefix}{tag}_{adjustedId:00000}.ice";
@@ -419,11 +425,23 @@ public sealed class ModelCatalog
             highQuality is null ? null : Pso2DataLocator.ComputeHash(highQuality),
             linkedInnerId,
             linkedOuterId,
-            colorMapping);
+            colorMapping,
+            legLength);
     }
 
     /// <summary>CMX stores "no link" as -1 (occasionally 0).</summary>
     private static int? OptionalId(int value) => value > 0 ? value : null;
+
+    /// <summary>
+    /// The footwear-dependent height factor the game multiplies into
+    /// body_root so the character stands on the ground: measured against a
+    /// live install, an outfit's ground-contact body_root scale is its
+    /// proportion value times this, to within about 0.2%. Outerwear stores
+    /// -1 here because the value belongs to whatever is worn underneath, and
+    /// the same sentinel marks any entry that simply has none.
+    /// </summary>
+    private static float? OptionalLegLength(float value) =>
+        value > 0f && float.IsFinite(value) ? value : null;
 
     private static ModelColorMapping ToModelColorMapping(BODYMaskColorMapping mapping) =>
         new(
@@ -555,6 +573,7 @@ public sealed class ModelCatalog
                     color_green INTEGER NOT NULL,
                     color_blue INTEGER NOT NULL,
                     color_alpha INTEGER NOT NULL,
+                    leg_length REAL,
                     PRIMARY KEY(object_type, id)
                 );
                 CREATE INDEX objects_name_jp ON objects(name_jp);
@@ -572,7 +591,8 @@ public sealed class ModelCatalog
         insert.CommandText = """
             INSERT INTO objects VALUES(
                 $type, $id, $adjusted, $jp, $en, $file, $hash, $exFile, $exHash,
-                $linkedInner, $linkedOuter, $colorRed, $colorGreen, $colorBlue, $colorAlpha)
+                $linkedInner, $linkedOuter, $colorRed, $colorGreen, $colorBlue, $colorAlpha,
+                $legLength)
             """;
         var type = insert.Parameters.Add("$type", SqliteType.Text);
         var id = insert.Parameters.Add("$id", SqliteType.Integer);
@@ -589,6 +609,7 @@ public sealed class ModelCatalog
         var colorGreen = insert.Parameters.Add("$colorGreen", SqliteType.Integer);
         var colorBlue = insert.Parameters.Add("$colorBlue", SqliteType.Integer);
         var colorAlpha = insert.Parameters.Add("$colorAlpha", SqliteType.Integer);
+        var legLength = insert.Parameters.Add("$legLength", SqliteType.Real);
         foreach (var record in records)
         {
             type.Value = record.ObjectType;
@@ -606,6 +627,7 @@ public sealed class ModelCatalog
             colorGreen.Value = record.ColorMapping.Green;
             colorBlue.Value = record.ColorMapping.Blue;
             colorAlpha.Value = record.ColorMapping.Alpha;
+            legLength.Value = (object?)record.LegLength ?? DBNull.Value;
             insert.ExecuteNonQuery();
         }
 

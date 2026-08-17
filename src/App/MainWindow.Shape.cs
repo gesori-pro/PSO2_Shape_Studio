@@ -23,6 +23,9 @@ namespace Pso2ShapeStudio.App;
 // Shape sliders, undo/redo history, and pose rebuilding.
 public partial class MainWindow : Window
 {
+    /// <summary>The bone the game scales to stand a character on the floor.</summary>
+    private const string GroundContactBone = "body_root";
+
     private async void LoadCharacter(object? sender, RoutedEventArgs e)
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -254,8 +257,15 @@ public partial class MainWindow : Window
         {
             foreach (var (name, value) in _proportions.Bones)
             {
+                var scale = ToVector3(value.Scale);
+                if (_outfitLegLength is float legLength &&
+                    string.Equals(name, GroundContactBone, StringComparison.OrdinalIgnoreCase))
+                {
+                    scale *= legLength;
+                }
+
                 composer.SetProportion(name, new BoneDelta(
-                    ToVector3(value.Scale), ToVector3(value.Pos),
+                    scale, ToVector3(value.Pos),
                     Quaternion.Normalize(new Quaternion(
                         (float)value.RotQuat[0], (float)value.RotQuat[1],
                         (float)value.RotQuat[2], (float)value.RotQuat[3]))));

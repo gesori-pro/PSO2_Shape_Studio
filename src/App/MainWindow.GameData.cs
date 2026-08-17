@@ -303,7 +303,10 @@ public partial class MainWindow : Window
                 group => ToColorMapping(group.First().Record.ColorMapping),
                 StringComparer.OrdinalIgnoreCase);
 
-        await LoadPathsAsync(models.Select(model => model.Path), mappings);
+        // Ground contact belongs to the piece carrying the footwear, so it
+        // comes from the selected item; linked outerwear stores -1 there.
+        await LoadPathsAsync(
+            models.Select(model => model.Path), mappings, selected.Record.LegLength);
 
         // A searched outfit should come up wearing skin, not gray flesh. If
         // neither skin set made it to the viewport (first run, or an earlier

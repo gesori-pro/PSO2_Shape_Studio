@@ -74,6 +74,39 @@ public sealed class ModelCatalogTests
         }
     }
 
+    /// <summary>
+    /// legLength is the footwear factor the pose multiplies into body_root.
+    /// Entries that have none - outerwear, and anything that is not worn on
+    /// the legs - must read back as null rather than a silent 1.0, so the
+    /// pose can tell "no adjustment" from "adjustment of exactly one".
+    /// </summary>
+    [Fact]
+    public void LegLengthSurvivesTheRoundTripAndStaysNullWhenAbsent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"pso2-catalog-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "objects.db");
+        try
+        {
+            CreateDatabase(path);
+            var catalog = new ModelCatalog(path);
+
+            var basewear = catalog.FindByTypeAndId("basewear", 201630);
+            Assert.NotNull(basewear);
+            Assert.Equal(1.03341f, basewear.LegLength!.Value, 5);
+
+            var setwear = catalog.FindByTypeAndId("setwear", 205990);
+            Assert.Equal(1.09467f, setwear!.LegLength!.Value, 5);
+
+            Assert.Null(catalog.FindByTypeAndId("hair", 110000)!.LegLength);
+            Assert.Null(catalog.FindByTypeAndId("skin", 100000)!.LegLength);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public void FindByTypeAndId_ReturnsLinkedWearIds()
     {
@@ -146,6 +179,7 @@ public sealed class ModelCatalogTests
                 color_green INTEGER NOT NULL,
                 color_blue INTEGER NOT NULL,
                 color_alpha INTEGER NOT NULL,
+                leg_length REAL,
                 PRIMARY KEY(object_type, id)
             );
             INSERT INTO objects VALUES(
@@ -153,27 +187,27 @@ public sealed class ModelCatalogTests
                 'character/making_reboot/pl_bw_201630.ice',
                 '1e75629697436ed480353c3ebc1c59b3',
                 'character/making_reboot_ex/pl_bw_201630_ex.ice',
-                'cf540ec3ff917cd65e9fd3e67f4fecfa', NULL, NULL, 3, 4, 0, 0
+                'cf540ec3ff917cd65e9fd3e67f4fecfa', NULL, NULL, 3, 4, 0, 0, 1.03341
             );
             INSERT INTO objects VALUES(
                 'skin', 100000, 100000, 'ベースボディT1', 'Base Body T1',
                 'character/making_reboot/pl_sk_100000.ice', 'a', NULL, NULL, NULL, NULL,
-                11, 12, 0, 0
+                11, 12, 0, 0, NULL
             );
             INSERT INTO objects VALUES(
                 'skin', 200000, 200000, 'ベースボディT2', 'Base Body T2',
                 'character/making_reboot/pl_sk_200000.ice', 'b', NULL, NULL, NULL, NULL,
-                11, 12, 0, 0
+                11, 12, 0, 0, NULL
             );
             INSERT INTO objects VALUES(
                 'hair', 110000, 110000, 'N-ポニーテール', 'N-Ponytail',
                 'character/making_reboot/pl_hr_110000.ice', 'c', NULL, NULL, NULL, NULL,
-                17, 18, 0, 0
+                17, 18, 0, 0, NULL
             );
             INSERT INTO objects VALUES(
                 'setwear', 205990, 205990, 'N-ドレスセット', 'N-Dress Set',
                 'character/making_reboot/pl_bd_205990.ice', 'd', NULL, NULL, NULL, 100400,
-                3, 4, 0, 0
+                3, 4, 0, 0, 1.09467
             );
             """;
         command.ExecuteNonQuery();

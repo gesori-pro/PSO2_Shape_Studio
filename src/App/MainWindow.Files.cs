@@ -113,9 +113,16 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <param name="legLength">
+    /// The CMX ground-contact factor of the outfit being loaded, or null when
+    /// it is unknown (a dropped file) or irrelevant (a character file). It is
+    /// only adopted when this load actually brings in geometry, so opening a
+    /// character file keeps the outfit's value instead of clearing it.
+    /// </param>
     private async Task LoadPathsAsync(
         IEnumerable<string> inputPaths,
-        IReadOnlyDictionary<string, Pso2ColorMapping>? bodyColorMappings = null)
+        IReadOnlyDictionary<string, Pso2ColorMapping>? bodyColorMappings = null,
+        float? legLength = null)
     {
         var paths = inputPaths
             .Where(path => !string.IsNullOrWhiteSpace(path) && IsSupportedPath(path))
@@ -165,6 +172,11 @@ public partial class MainWindow : Window
                 var entry = new ModelEntry(model, _language);
                 entry.VisibilityChanged += ModelVisibilityChanged;
                 Models.Add(entry);
+            }
+
+            if (result.Models.Count > 0)
+            {
+                _outfitLegLength = legLength;
             }
 
             RefreshOrnamentControls();
@@ -297,6 +309,12 @@ public partial class MainWindow : Window
         if (!Models.Remove(entry))
         {
             return;
+        }
+
+        if (Models.Count == 0)
+        {
+            _outfitLegLength = null;
+            RebuildPose();
         }
 
         RefreshOrnamentControls();

@@ -65,6 +65,15 @@ public partial class MainWindow : Window
         AppSettingDefaults.MainSkinColor,
         AppSettingDefaults.SubSkinColor);
     private bool _characterColorsFromFile;
+
+    /// <summary>
+    /// The loaded outfit's CMX legLength. The game folds this footwear
+    /// factor into body_root so the character stands on the ground, and it
+    /// is not part of the slider proportion table - without it a heeled
+    /// outfit sinks several centimetres below the floor. Null until an
+    /// outfit with a value is loaded, which leaves the pose untouched.
+    /// </summary>
+    private float? _outfitLegLength;
     private readonly Dictionary<string, RenderTextureSet> _skinTextureCache =
         new(StringComparer.OrdinalIgnoreCase);
     private ViewportStatistics? _lastStatistics;
