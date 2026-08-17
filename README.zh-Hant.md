@@ -6,7 +6,7 @@ PSO2 Shape Studio 是一款 Windows 桌面工具，透過服裝體型調整 AQM 
 微調 PSO2 與 PSO2:NGS 的角色體型。不需要 Blender，即可一邊預覽模型、
 一邊以滑桿套用、編輯並儲存這些後製調整。
 
-> **目前版本：** [1.3.0](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.3.0)。
+> **目前版本：** [1.3.1](https://github.com/gesori-pro/PSO2_Shape_Studio/releases/tag/v1.3.1)。
 > 請從發佈頁面下載最新的免安裝 Windows x64 版本。
 
 ## 功能
