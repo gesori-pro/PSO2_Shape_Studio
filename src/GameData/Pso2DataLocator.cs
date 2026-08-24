@@ -38,7 +38,7 @@ public sealed class Pso2DataLocator
     public Pso2DataLocator(string selectedPath)
     {
         DataPath = NormalizeDataPath(selectedPath);
-        BinPath = Directory.GetParent(DataPath)?.FullName
+        BinPath = Directory.GetParent(Path.TrimEndingDirectorySeparator(DataPath))?.FullName
                   ?? throw new DirectoryNotFoundException($"PSO2 data parent was not found: {DataPath}");
     }
 
@@ -136,7 +136,11 @@ public sealed class Pso2DataLocator
         string fullPath;
         try
         {
-            fullPath = Path.GetFullPath(selectedPath);
+            // A trailing separator survives GetFullPath and then makes
+            // Directory.GetParent stop one level short, which pointed the
+            // game-file lookup at data\data\win32 and reported every file
+            // as missing. TrimEndingDirectorySeparator leaves roots alone.
+            fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(selectedPath));
         }
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
         {

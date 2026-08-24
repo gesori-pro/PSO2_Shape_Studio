@@ -190,6 +190,40 @@ public sealed class ModelCatalogTests
         }
     }
 
+    /// <summary>
+    /// Selecting the data folder with a trailing separator used to shift the
+    /// whole game-file lookup one level down - Directory.GetParent treats
+    /// "...\data\\" as if it named something inside data, so every file was
+    /// searched for under data\data and reported missing while the reported
+    /// path still looked right.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("\\")]
+    public void DataFolderResolvesTheSameWithOrWithoutATrailingSeparator(string suffix)
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"pso2-trailing-{Guid.NewGuid():N}");
+        var binPath = Path.Combine(root, "pso2_bin");
+        var dataPath = Path.Combine(binPath, "data");
+        Directory.CreateDirectory(Path.Combine(dataPath, "win32"));
+        File.WriteAllBytes(
+            Path.Combine(dataPath, "win32", new string('a', 32)), [0]);
+        try
+        {
+            var validation = Pso2DataLocator.ValidateSelectedPath(dataPath + suffix);
+            Assert.True(validation.IsValid, validation.Message);
+            Assert.Equal(dataPath, validation.DataPath);
+
+            var locator = new Pso2DataLocator(dataPath + suffix);
+            Assert.Equal(dataPath, locator.DataPath);
+            Assert.Equal(binPath, locator.BinPath);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static void CreateDatabase(string path)
     {
         var builder = new SqliteConnectionStringBuilder { DataSource = path, Pooling = false };
