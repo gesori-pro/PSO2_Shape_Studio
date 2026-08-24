@@ -416,14 +416,14 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Turns a catalog failure into something a player can act on. Missing
-    /// classic data is common enough - an NGS-only install passes the folder
-    /// check and then has no CMX - that it gets its own translated sentence
-    /// instead of the exception text.
+    /// Turns a catalog failure into something a player can act on. A missing
+    /// character-making index gets a translated sentence naming the file that
+    /// was looked for, since the folder check passes without it and the raw
+    /// exception says nothing useful.
     /// </summary>
     private string CatalogFailureMessage(Exception exception) =>
-        exception is Pso2ClassicDataMissingException
-            ? L(AppText.CacheNeedsClassicData)
+        exception is Pso2CharacterIndexMissingException missing
+            ? L(AppText.CacheNeedsCharacterIndex, missing.ExpectedPath)
             : exception.Message;
 
     private async Task BuildCatalogAsync(Pso2DataLocator locator)

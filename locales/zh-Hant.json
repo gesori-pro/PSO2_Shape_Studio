@@ -63,7 +63,7 @@
         "CacheCreatedStatus": "模型快取已建立：{0:N0} 筆 · {1:F1} 秒",
         "CacheFailedInline": "遊戲資料已驗證，但重新整理快取失敗：{0}",
         "CacheFailedStatus": "建立模型快取失敗：{0}",
-        "CacheNeedsClassicData": "缺少經典版 PSO2 資料，無法建立模型型錄。僅安裝 NGS 時不包含這些資料。請在啟動器中下載經典版資料後再重新整理。",
+        "CacheNeedsCharacterIndex": "未在 {0} 找到角色創建索引。型錄中的所有模型都記錄在這一個檔案裡，缺少它就無法進行模型搜尋。請在啟動器中檢查遊戲檔案後再重新整理。",
         "InvalidKeep": "選取的路徑無效；已保留原有路徑：{0}",
         "Invalid": "選取的路徑無效：{0}",
         "GameFolderFailed": "設定遊戲資料夾失敗：{0}",

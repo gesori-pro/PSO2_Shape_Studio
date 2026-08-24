@@ -281,12 +281,21 @@ public sealed class ModelCatalog
         return connection;
     }
 
+    /// <summary>
+    /// Where the library looks for the character-making index. Recomputed here
+    /// so a failure can name the exact file rather than a folder.
+    /// </summary>
+    private static string CharacterIndexPath(Pso2DataLocator locator) => Path.Combine(
+        locator.DataPath,
+        "win32",
+        Pso2DataLocator.ComputeHash("character/making/pl_system.ice"));
+
     private static IEnumerable<ModelCatalogRecord> ReadGameRecords(Pso2DataLocator locator)
     {
-        // Both of these come back null when the file behind them is absent
-        // rather than throwing, and an NGS-only install has neither.
+        // Both the index and the name text come back null when the file
+        // behind them is absent rather than throwing.
         var cmx = ReferenceGenerator.ExtractCMX(locator.BinPath)
-                  ?? throw new Pso2ClassicDataMissingException(locator.DataPath);
+                  ?? throw new Pso2CharacterIndexMissingException(CharacterIndexPath(locator));
         ReferenceGenerator.ReadCMXText(
             locator.BinPath,
             out var partsText,

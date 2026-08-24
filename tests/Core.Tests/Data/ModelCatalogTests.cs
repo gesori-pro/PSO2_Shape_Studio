@@ -177,10 +177,11 @@ public sealed class ModelCatalogTests
             Assert.True(validation.IsValid, "an NGS-only layout still counts as a game folder");
 
             var locator = new Pso2DataLocator(validation.DataPath!);
-            var exception = Assert.Throws<Pso2ClassicDataMissingException>(
+            var exception = Assert.Throws<Pso2CharacterIndexMissingException>(
                 () => ModelCatalog.BuildFromGame(locator, Path.Combine(root, "objects.db")));
 
-            Assert.Contains("classic", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(exception.ExpectedPath, exception.Message, StringComparison.Ordinal);
+            Assert.Contains("win32", exception.ExpectedPath, StringComparison.Ordinal);
             Assert.False(File.Exists(Path.Combine(root, "objects.db")));
         }
         finally
