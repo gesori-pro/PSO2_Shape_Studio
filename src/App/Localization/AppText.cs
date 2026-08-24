@@ -45,6 +45,7 @@ public enum AppText
     CacheCreatedStatus,
     CacheFailedInline,
     CacheFailedStatus,
+    CacheNeedsClassicData,
     InvalidKeep,
     Invalid,
     GameFolderFailed,

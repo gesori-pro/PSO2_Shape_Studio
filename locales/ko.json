@@ -63,6 +63,7 @@
         "CacheCreatedStatus": "모델 캐시 {0:N0}건 생성 · {1:F1}초",
         "CacheFailedInline": "게임 데이터는 확인했지만 캐시 갱신에 실패했습니다: {0}",
         "CacheFailedStatus": "모델 캐시 생성 실패: {0}",
+        "CacheNeedsClassicData": "클래식 PSO2 데이터가 없어 모델 카탈로그를 만들 수 없습니다. NGS 전용 설치에는 포함되지 않습니다. 런처에서 클래식 데이터를 내려받은 뒤 다시 갱신하세요.",
         "InvalidKeep": "선택한 경로가 올바르지 않아 기존 경로를 유지합니다: {0}",
         "Invalid": "경로가 올바르지 않습니다: {0}",
         "GameFolderFailed": "게임 폴더 설정 실패: {0}",

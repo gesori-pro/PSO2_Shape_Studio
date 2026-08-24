@@ -63,6 +63,7 @@
         "CacheCreatedStatus": "Model cache created: {0:N0} items · {1:F1}s",
         "CacheFailedInline": "Game data was verified, but cache refresh failed: {0}",
         "CacheFailedStatus": "Model cache creation failed: {0}",
+        "CacheNeedsClassicData": "The classic PSO2 data is missing, so there is nothing to build the model catalog from. An NGS-only installation does not include it - download the classic data in your launcher, then refresh.",
         "InvalidKeep": "The selected path is invalid; the existing path was kept: {0}",
         "Invalid": "The selected path is invalid: {0}",
         "GameFolderFailed": "Game folder setup failed: {0}",

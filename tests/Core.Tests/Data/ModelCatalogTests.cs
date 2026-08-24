@@ -155,6 +155,40 @@ public sealed class ModelCatalogTests
         }
     }
 
+    /// <summary>
+    /// An NGS-only install has win32reboot but no classic win32, so it passes
+    /// the data-folder check and then has no character-making index to read.
+    /// That used to surface as "Object reference not set to an instance of an
+    /// object"; it has to name the actual problem instead.
+    /// </summary>
+    [Fact]
+    public void BuildWithoutClassicDataReportsTheMissingIndex()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"pso2-ngsonly-{Guid.NewGuid():N}");
+        var dataPath = Path.Combine(root, "pso2_bin", "data");
+        // The reboot layout stores files as win32reboot/<2 hex>/<30 hex>.
+        var rebootPrefix = Path.Combine(dataPath, "win32reboot", "ab");
+        Directory.CreateDirectory(rebootPrefix);
+        File.WriteAllBytes(
+            Path.Combine(rebootPrefix, "0123456789abcdef0123456789abcd"), [0]);
+        try
+        {
+            var validation = Pso2DataLocator.ValidateSelectedPath(dataPath);
+            Assert.True(validation.IsValid, "an NGS-only layout still counts as a game folder");
+
+            var locator = new Pso2DataLocator(validation.DataPath!);
+            var exception = Assert.Throws<Pso2ClassicDataMissingException>(
+                () => ModelCatalog.BuildFromGame(locator, Path.Combine(root, "objects.db")));
+
+            Assert.Contains("classic", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(Path.Combine(root, "objects.db")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static void CreateDatabase(string path)
     {
         var builder = new SqliteConnectionStringBuilder { DataSource = path, Pooling = false };

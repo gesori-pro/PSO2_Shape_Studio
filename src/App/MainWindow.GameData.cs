@@ -408,11 +408,23 @@ public partial class MainWindow : Window
             _catalog = null;
             ClearSkinOptions();
             SearchModelsButton.IsEnabled = false;
-            DataFolderValidationText.Text = L(AppText.DataPrepareFailedInline, exception.Message);
+            var message = CatalogFailureMessage(exception);
+            DataFolderValidationText.Text = L(AppText.DataPrepareFailedInline, message);
             DataFolderValidationText.Foreground = DataErrorBrush;
-            StatusText.Text = L(AppText.DataPrepareFailedStatus, exception.Message);
+            StatusText.Text = L(AppText.DataPrepareFailedStatus, message);
         }
     }
+
+    /// <summary>
+    /// Turns a catalog failure into something a player can act on. Missing
+    /// classic data is common enough - an NGS-only install passes the folder
+    /// check and then has no CMX - that it gets its own translated sentence
+    /// instead of the exception text.
+    /// </summary>
+    private string CatalogFailureMessage(Exception exception) =>
+        exception is Pso2ClassicDataMissingException
+            ? L(AppText.CacheNeedsClassicData)
+            : exception.Message;
 
     private async Task BuildCatalogAsync(Pso2DataLocator locator)
     {
@@ -460,9 +472,10 @@ public partial class MainWindow : Window
         {
             _catalog = null;
             ClearSkinOptions();
-            DataFolderValidationText.Text = L(AppText.CacheFailedInline, exception.Message);
+            var message = CatalogFailureMessage(exception);
+            DataFolderValidationText.Text = L(AppText.CacheFailedInline, message);
             DataFolderValidationText.Foreground = DataErrorBrush;
-            StatusText.Text = L(AppText.CacheFailedStatus, exception.Message);
+            StatusText.Text = L(AppText.CacheFailedStatus, message);
         }
         finally
         {

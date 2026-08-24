@@ -283,7 +283,10 @@ public sealed class ModelCatalog
 
     private static IEnumerable<ModelCatalogRecord> ReadGameRecords(Pso2DataLocator locator)
     {
-        var cmx = ReferenceGenerator.ExtractCMX(locator.BinPath);
+        // Both of these come back null when the file behind them is absent
+        // rather than throwing, and an NGS-only install has neither.
+        var cmx = ReferenceGenerator.ExtractCMX(locator.BinPath)
+                  ?? throw new Pso2ClassicDataMissingException(locator.DataPath);
         ReferenceGenerator.ReadCMXText(
             locator.BinPath,
             out var partsText,
@@ -492,13 +495,28 @@ public sealed class ModelCatalog
     private static int AdjustedId(int id, Dictionary<int, BCLNObject>? links) =>
         links is not null && links.TryGetValue(id, out var link) ? link.bcln.fileId : id;
 
+    /// <summary>
+    /// Item names from the game's text archives. These are a bonus: the
+    /// embedded name table already covers most items, so a missing or partial
+    /// text archive costs a few display names rather than the whole catalog.
+    /// </summary>
     private static Dictionary<int, (string Japanese, string English)> ReadNames(
-        PSO2Text text,
+        PSO2Text? text,
         string category)
     {
         var result = new Dictionary<int, (string Japanese, string English)>();
+        if (text?.categoryNames is null || text.text is null)
+        {
+            return result;
+        }
+
         var index = text.categoryNames.IndexOf(category);
         if (index < 0)
+        {
+            return result;
+        }
+
+        if (index >= text.text.Count)
         {
             return result;
         }
