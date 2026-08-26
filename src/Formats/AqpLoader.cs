@@ -37,9 +37,13 @@ public static class AqpLoader
 
         var model = package.models[0];
 
-        // Past 0xC32 (NGS is 0xC33) one vertex buffer serves several meshes,
-        // so vtxlList and meshList do not line up until this splits them.
-        if (model.objc.type > 0xC32)
+        // Past 0xC32 (NGS is 0xC33) one vertex buffer can serve several
+        // meshes, and splitting gives each mesh its own. Some NGS models are
+        // already stored that way, though, and splitting those corrupts them:
+        // meshes disappear and vtxlList gains null entries that crash inside
+        // the library. Ask the data whether the buffers are shared instead of
+        // inferring it from the version.
+        if (model.objc.type > 0xC32 && model.vsetList.Count != model.meshList.Count)
         {
             model.splitVSETPerMesh();
         }

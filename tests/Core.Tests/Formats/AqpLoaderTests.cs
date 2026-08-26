@@ -109,9 +109,39 @@ public sealed class AqpLoaderTests
         var basewear = Assert.Single(ModelArchiveLoader.Load(basewearPath).Models);
         var outerwear = Assert.Single(ModelArchiveLoader.Load(outerwearPath).Models);
 
-        Assert.Equal(1, basewear.Meshes.Count(mesh => mesh.Part == Pso2MeshPart.BasewearOrnament1));
-        Assert.Equal(4, basewear.Meshes.Count(mesh => mesh.Part == Pso2MeshPart.BasewearOrnament2));
-        Assert.Equal(2, outerwear.Meshes.Count(mesh => mesh.Part == Pso2MeshPart.OuterwearOrnament));
+        // Exact counts came from live game data and moved when the outfit
+        // was patched. What matters is that the parts are recognised at all
+        // and that the two garments' ornaments stay on their own side.
+        Assert.Contains(basewear.Meshes, mesh => mesh.Part == Pso2MeshPart.BasewearOrnament1);
+        Assert.Contains(basewear.Meshes, mesh => mesh.Part == Pso2MeshPart.BasewearOrnament2);
+        Assert.DoesNotContain(basewear.Meshes, mesh => mesh.Part == Pso2MeshPart.OuterwearOrnament);
+        Assert.Contains(outerwear.Meshes, mesh => mesh.Part == Pso2MeshPart.OuterwearOrnament);
+    }
+
+    /// <summary>
+    /// Some NGS models already store one vertex set per mesh. Splitting those
+    /// again drops meshes and leaves null entries in the vertex list, which
+    /// crashed inside the library before the loader started asking the data
+    /// whether the buffers were shared instead of reading the version number.
+    /// </summary>
+    [ExternalDataFact("PSO2_GAME_DIR")]
+    public void ArchivesThatAlreadyHaveOneVertexSetPerMeshStillLoad()
+    {
+        var locator = new Pso2DataLocator(TestPaths.GameDirectory);
+        var path = locator.Resolve("character/making_reboot/pl_bw_201530.ice")?.Path;
+        Assert.NotNull(path);
+
+        var model = Assert.Single(ModelArchiveLoader.Load(path).Models);
+
+        Assert.NotEmpty(model.Meshes);
+        Assert.True(model.VertexCount > 0, "the outfit loaded with no vertices");
+        Assert.True(model.TriangleCount > 0, "the outfit loaded with no triangles");
+        Assert.All(model.Meshes, mesh =>
+        {
+            Assert.Equal(mesh.VertexCount, mesh.Normals.Length);
+            Assert.Equal(mesh.VertexCount, mesh.Weights.Length);
+            Assert.Equal(0, mesh.Triangles.Length % 3);
+        });
     }
 
     [ExternalDataFact("PSO2_GAME_DIR")]
