@@ -2,9 +2,13 @@ namespace Pso2ShapeStudio.Formats;
 
 public sealed record SkinTextureArchive(
     string SourcePath,
-    RenderTextureSet Textures,
+    RenderSkinTextureSet TextureSets,
     int DdsCount)
 {
+    public RenderTextureSet Textures => TextureSets.Base;
+
+    public RenderTextureSet MuscleTextures => TextureSets.Muscle;
+
     public RenderTexture DiffuseTexture => Textures.Diffuse
         ?? throw new InvalidDataException($"Skin archive has no diffuse texture: {SourcePath}");
 }
@@ -19,9 +23,8 @@ public static class SkinTextureLoader
                 .Equals(".dds", StringComparison.OrdinalIgnoreCase))
             .ToArray();
         var names = ddsEntries.Select(entry => entry.Name).ToArray();
-        RenderTexture? Decode(char suffix)
+        RenderTexture? Decode(string? name)
         {
-            var name = SelectTextureName(names, adjustedId, suffix);
             if (name is null)
             {
                 return null;
@@ -32,20 +35,54 @@ public static class SkinTextureLoader
             return DdsTextureDecoder.Decode(entry.Name, entry.Data);
         }
 
-        var textures = new RenderTextureSet(
-            Decode('d'),
-            Decode('m'),
-            Decode('n'),
-            Decode('s'));
-        if (textures.Diffuse is null)
+        var baseNames = new[] { 'd', 'm', 'n', 's' }
+            .ToDictionary(
+                suffix => suffix,
+                suffix => SelectTextureName(names, adjustedId, suffix));
+        var baseTextures = new RenderTextureSet(
+            Decode(baseNames['d']),
+            Decode(baseNames['m']),
+            Decode(baseNames['n']),
+            Decode(baseNames['s']));
+        if (baseTextures.Diffuse is null)
         {
             throw new InvalidDataException(
                 $"Skin ICE contains no diffuse texture for ID {adjustedId}: {path}");
         }
 
+        RenderTexture? DecodeMuscle(char suffix, RenderTexture? fallback)
+        {
+            var name = SelectExactTextureName(names, adjustedId + 1, suffix);
+            if (name is null)
+            {
+                return fallback;
+            }
+
+            var baseName = baseNames[suffix];
+            if (baseName is not null)
+            {
+                var muscleEntry = ddsEntries.First(value =>
+                    string.Equals(value.Name, name, StringComparison.OrdinalIgnoreCase));
+                var baseEntry = ddsEntries.First(value =>
+                    string.Equals(value.Name, baseName, StringComparison.OrdinalIgnoreCase));
+                if (muscleEntry.Data.AsSpan().SequenceEqual(baseEntry.Data))
+                {
+                    return fallback;
+                }
+            }
+
+            return Decode(name);
+        }
+
+        var muscleTextures = new RenderTextureSet(
+            DecodeMuscle('d', baseTextures.Diffuse),
+            DecodeMuscle('m', baseTextures.Mask),
+            DecodeMuscle('n', baseTextures.Normal),
+            DecodeMuscle('s', baseTextures.Multi));
+
         return new SkinTextureArchive(
             archive.SourcePath,
-            textures,
+            new RenderSkinTextureSet(baseTextures, muscleTextures),
             ddsEntries.Length);
     }
 
@@ -68,5 +105,15 @@ public static class SkinTextureLoader
                ?? available.FirstOrDefault(name =>
                    Path.GetFileNameWithoutExtension(name)
                        .EndsWith($"_sk_{suffix}", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? SelectExactTextureName(
+        IEnumerable<string> names,
+        int adjustedId,
+        char suffix)
+    {
+        var expected = $"pl_rbd_{adjustedId:000000}_sk_{suffix}.dds";
+        return names.FirstOrDefault(name =>
+            string.Equals(Path.GetFileName(name), expected, StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -116,6 +116,16 @@ public sealed record RenderTextureSet(
         .Count();
 }
 
+/// <summary>
+/// The two texture banks stored in an NGS skin ICE. The base bank ends in
+/// 000 while the following 001 bank carries the muscular mask/normal detail.
+/// Character muscleMass blends between them; skin gloss is a separate material
+/// parameter and must not be confused with this texture pair.
+/// </summary>
+public sealed record RenderSkinTextureSet(
+    RenderTextureSet Base,
+    RenderTextureSet Muscle);
+
 public static class TexturePixelRows
 {
     /// <summary>

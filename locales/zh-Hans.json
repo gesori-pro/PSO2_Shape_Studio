@@ -19,7 +19,7 @@
         "LoadAqm": "加载 _sa.aqm…",
         "ResetShape": "重置体型",
         "SaveAqm": "保存 _sa.aqm…",
-        "CameraHelp": "左/右键拖动：旋转   Ctrl+拖动：垂直移动   中键：重置视角   滚轮：缩放",
+        "CameraHelp": "左键拖动：旋转镜头   右键拖动：旋转模型   Ctrl+拖动：垂直移动   中键：重置   滚轮：缩放",
         "Ready": "就绪",
         "Statistics": "模型 {0:N0} · 顶点 {1:N0} · 三角形 {2:N0} · 贴图 {3:N0} · {4:F1} fps",
         "Scale": "缩放 (S)",
@@ -142,7 +142,8 @@
         "MissingBoneFields": "每个自定义分组都需要名称及必要的骨骼名称。",
         "BoneNotFound": "加载的骨架不包含此骨骼：{0}",
         "DuplicateBone": "骨骼「{0}」已分配给另一个启用中的分组。",
-        "OptionsSaved": "选项已保存。"
+        "OptionsSaved": "选项已保存。",
+        "DemoLighting": "演示光照预览"
     },
     "shapeNames": {
         "bodyroot": "脚底高度 (body_root Y)",

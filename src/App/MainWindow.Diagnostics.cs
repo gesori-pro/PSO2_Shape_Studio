@@ -22,12 +22,42 @@ public partial class MainWindow : Window
     private void WireDiagnosticHooks()
     {
         var arguments = Environment.GetCommandLineArgs();
+        if (arguments.Contains("--demo-lighting", StringComparer.OrdinalIgnoreCase))
+        {
+            DemoLightingCheckBox.IsChecked = true;
+            Viewport.SetDemoLighting(true);
+        }
         if (arguments.Contains("--camera-diagnostics", StringComparer.OrdinalIgnoreCase))
         {
             Viewport.CameraChanged += (_, camera) =>
                 StatusText.Text =
                     $"CAMERA mode={camera.Mode} yaw={camera.Yaw:F3} pitch={camera.Pitch:F3} " +
-                    $"focusY={camera.FocusY:F3} distance={camera.Distance:F3}";
+                    $"focusY={camera.FocusY:F3} distance={camera.Distance:F3} " +
+                    $"modelYaw={camera.ModelYaw:F3}";
+        }
+
+        var toneSmoke = arguments.FirstOrDefault(a => a.StartsWith("--demo-tone-smoke=", StringComparison.OrdinalIgnoreCase));
+        if (toneSmoke is not null)
+        {
+            HideForSmokeTest();
+            Viewport.SetDemoLighting(true);
+            var finished = false;
+            void FinishToneSmoke(string result)
+            {
+                if (finished) return;
+                finished = true;
+                File.WriteAllText(toneSmoke["--demo-tone-smoke=".Length..], result);
+                DispatcherTimer.RunOnce(Close, TimeSpan.FromMilliseconds(100));
+            }
+            Viewport.StatisticsChanged += (_, statistics) =>
+            {
+                if (statistics.FramesPerSecond > 0) FinishToneSmoke("HDR framebuffer and tone pass rendered successfully");
+            };
+            DispatcherTimer.RunOnce(() => FinishToneSmoke("ERROR: HDR render timed out"), TimeSpan.FromSeconds(15));
+            Viewport.RendererStatusChanged += (_, message) =>
+            {
+                if (message.Contains(L(AppText.FailedWord), StringComparison.OrdinalIgnoreCase)) FinishToneSmoke(message);
+            };
         }
 
         var rendererSmoke = arguments.FirstOrDefault(argument =>

@@ -19,7 +19,7 @@
         "LoadAqm": "Load _sa.aqm…",
         "ResetShape": "Reset shape",
         "SaveAqm": "Save _sa.aqm…",
-        "CameraHelp": "L/R drag: rotate   Ctrl+drag: move vertically   Middle click: reset view   Wheel: zoom",
+        "CameraHelp": "Left drag: rotate camera   Right drag: rotate model   Ctrl+drag: move vertically   Middle click: reset   Wheel: zoom",
         "Ready": "Ready",
         "Statistics": "Models {0:N0} · Vertices {1:N0} · Triangles {2:N0} · Textures {3:N0} · {4:F1} fps",
         "Scale": "Scale (S)",
@@ -142,7 +142,8 @@
         "MissingBoneFields": "Each custom group needs a name and the required bone names.",
         "BoneNotFound": "The loaded skeleton does not contain this bone: {0}",
         "DuplicateBone": "Bone '{0}' is already assigned to another enabled group.",
-        "OptionsSaved": "Options saved."
+        "OptionsSaved": "Options saved.",
+        "DemoLighting": "Demo lighting (preview)"
     },
     "shapeNames": {
         "bodyroot": "Sole Height (body_root Y)",

@@ -193,7 +193,7 @@ public partial class MainWindow : Window
             {
                 var archive = await Task.Run(() =>
                     SkinTextureLoader.Load(path, selected.Record.AdjustedId));
-                texture = archive.Textures;
+                texture = archive.TextureSets;
                 _skinTextureCache[path] = texture;
             }
 
@@ -207,7 +207,7 @@ public partial class MainWindow : Window
             }
 
             Viewport.SetSkinTextures(_skinTextureType1, _skinTextureType2);
-            var diffuse = texture.Diffuse
+            var diffuse = texture.Base.Diffuse
                           ?? throw new InvalidDataException("Selected skin has no diffuse texture.");
             StatusText.Text = L(
                 AppText.SkinLoaded, selected.DisplayName, diffuse.Width, diffuse.Height);

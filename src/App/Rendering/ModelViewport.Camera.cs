@@ -17,6 +17,7 @@ public sealed partial class ModelViewport
     private float _yaw = DefaultYaw;
     private float _pitch = DefaultPitch;
     private float _distance = DefaultDistance;
+    private float _modelYaw;
     private Point _lastPointer;
     private PointerMode _pointerMode;
 
@@ -32,16 +33,19 @@ public sealed partial class ModelViewport
             return true;
         }
 
-        var isRotationButton =
-            properties.PointerUpdateKind is PointerUpdateKind.LeftButtonPressed or
-                PointerUpdateKind.RightButtonPressed ||
-            properties.IsLeftButtonPressed ||
+        var leftPressed =
+            properties.PointerUpdateKind == PointerUpdateKind.LeftButtonPressed ||
+            properties.IsLeftButtonPressed;
+        var rightPressed =
+            properties.PointerUpdateKind == PointerUpdateKind.RightButtonPressed ||
             properties.IsRightButtonPressed;
-        _pointerMode = isRotationButton
-            ? modifiers.HasFlag(KeyModifiers.Control)
-                ? PointerMode.VerticalMove
-                : PointerMode.Rotate
-            : PointerMode.None;
+        _pointerMode = modifiers.HasFlag(KeyModifiers.Control) && (leftPressed || rightPressed)
+            ? PointerMode.VerticalMove
+            : rightPressed
+                ? PointerMode.ModelRotate
+                : leftPressed
+                    ? PointerMode.CameraRotate
+                    : PointerMode.None;
         if (_pointerMode != PointerMode.None)
         {
             _lastPointer = position;
@@ -62,12 +66,16 @@ public sealed partial class ModelViewport
         var dy = (float)(current.Y - _lastPointer.Y);
         _lastPointer = current;
 
-        if (_pointerMode == PointerMode.Rotate)
+        if (_pointerMode == PointerMode.CameraRotate)
         {
             _yaw -= dx * 0.008f;
             _pitch = Math.Clamp(_pitch + dy * 0.008f, -1.45f, 1.45f);
         }
-        else
+        else if (_pointerMode == PointerMode.ModelRotate)
+        {
+            _modelYaw = MathF.IEEERemainder(_modelYaw + dx * 0.008f, MathF.Tau);
+        }
+        else if (_pointerMode == PointerMode.VerticalMove)
         {
             _focus.Y += dy * (_distance * 0.0015f);
         }
@@ -97,13 +105,20 @@ public sealed partial class ModelViewport
         _yaw = DefaultYaw;
         _pitch = DefaultPitch;
         _distance = DefaultDistance;
+        _modelYaw = 0f;
         RequestNextFrameRendering();
         ReportCameraState();
     }
 
     private void ReportCameraState() => CameraChanged?.Invoke(
         this,
-        new ViewportCameraState(_yaw, _pitch, _focus.Y, _distance, _pointerMode.ToString()));
+        new ViewportCameraState(
+            _yaw,
+            _pitch,
+            _focus.Y,
+            _distance,
+            _modelYaw,
+            _pointerMode.ToString()));
 
     private Matrix4x4 BuildViewProjection(float aspect)
     {
@@ -128,7 +143,8 @@ public sealed partial class ModelViewport
     private enum PointerMode
     {
         None,
-        Rotate,
+        CameraRotate,
+        ModelRotate,
         VerticalMove,
     }
 }

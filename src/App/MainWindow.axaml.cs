@@ -55,8 +55,8 @@ public partial class MainWindow : Window
     private bool _applyingSkinSelections;
     private int _selectedSkinType1Id = DefaultSkinType1Id;
     private int _selectedSkinType2Id = DefaultSkinType2Id;
-    private RenderTextureSet? _skinTextureType1;
-    private RenderTextureSet? _skinTextureType2;
+    private RenderSkinTextureSet? _skinTextureType1;
+    private RenderSkinTextureSet? _skinTextureType2;
     private string _defaultMainSkin = AppSettingDefaults.MainSkinColor;
     private string _defaultSubSkin = AppSettingDefaults.SubSkinColor;
     private HashSet<string> _hiddenShapeGroups = new(StringComparer.OrdinalIgnoreCase);
@@ -65,6 +65,7 @@ public partial class MainWindow : Window
         AppSettingDefaults.MainSkinColor,
         AppSettingDefaults.SubSkinColor);
     private bool _characterColorsFromFile;
+    private CharacterSurfaceSettings _characterSurface = CharacterSurfaceSettings.Default;
 
     /// <summary>
     /// The loaded outfit's CMX legLength. The game folds this footwear
@@ -74,7 +75,7 @@ public partial class MainWindow : Window
     /// outfit with a value is loaded, which leaves the pose untouched.
     /// </summary>
     private float? _outfitLegLength;
-    private readonly Dictionary<string, RenderTextureSet> _skinTextureCache =
+    private readonly Dictionary<string, RenderSkinTextureSet> _skinTextureCache =
         new(StringComparer.OrdinalIgnoreCase);
     private ViewportStatistics? _lastStatistics;
 
@@ -94,6 +95,7 @@ public partial class MainWindow : Window
         _shapeEditTimer.Tick += (_, _) => CommitPendingShapeEdit();
         RebuildSliderGroups();
         Viewport.SetCharacterColors(_characterColors);
+        Viewport.SetCharacterSurface(_characterSurface);
         LanguageComboBox.ItemsSource = AppLocalizer.AvailableLanguages;
         AddHandler(
             InputElement.KeyDownEvent,
@@ -103,6 +105,7 @@ public partial class MainWindow : Window
         LanguageComboBox.SelectedIndex = LanguageIndex(_language);
         ApplyLanguage(initializeDataState: true);
         LanguageComboBox.SelectionChanged += LanguageChanged;
+        DemoLightingCheckBox.Click += (_, _) => Viewport.SetDemoLighting(DemoLightingCheckBox.IsChecked == true);
         BackgroundComboBox.SelectionChanged += async (_, _) =>
         {
             ApplyBackgroundSelection();
@@ -341,6 +344,7 @@ public partial class MainWindow : Window
         CameraHelpText.Text = L(AppText.CameraHelp);
         ToolTip.SetTip(LanguageComboBox, L(AppText.LanguageTip));
         ToolTip.SetTip(BackgroundComboBox, L(AppText.BackgroundTip));
+        DemoLightingCheckBox.Content = L(AppText.DemoLighting);
         FloorGuideCheckBox.Content = L(AppText.FloorGuide);
         ToolTip.SetTip(FloorGuideCheckBox, L(AppText.FloorGuideTip));
         OrnamentsExpander.Header = L(AppText.Ornaments);
@@ -540,6 +544,7 @@ public partial class MainWindow : Window
         IReadOnlyList<RenderModel> Models,
         ProportionResult? Proportions,
         CharacterColorPalette? Colors,
+        CharacterSurfaceSettings? Surface,
         ShapeAdjustFile? ShapeAdjust,
         int ArchiveEntryCount,
         int ArchiveDdsCount);

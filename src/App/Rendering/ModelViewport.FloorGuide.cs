@@ -105,6 +105,11 @@ public sealed partial class ModelViewport
         api.Uniform1(_hasMaskLocation, 0);
         api.Uniform1(_hasNormalLocation, 0);
         api.Uniform1(_hasMultiLocation, 0);
+        api.Uniform1(_hasMuscleDiffuseLocation, 0);
+        api.Uniform1(_hasMuscleMaskLocation, 0);
+        api.Uniform1(_hasMuscleNormalLocation, 0);
+        api.Uniform1(_hasMuscleMultiLocation, 0);
+        api.Uniform1(_skinMaterialLocation, 0);
         api.Uniform4(_colorChannelsLocation, 0f, 0f, 0f, 0f);
         api.Uniform1(_multiplyColorLocation, 0);
         api.Uniform1(_alphaCutoffLocation, 0f);
@@ -143,6 +148,11 @@ public sealed partial class ModelViewport
         api.Uniform1(_hasMaskLocation, 0);
         api.Uniform1(_hasNormalLocation, 0);
         api.Uniform1(_hasMultiLocation, 0);
+        api.Uniform1(_hasMuscleDiffuseLocation, 0);
+        api.Uniform1(_hasMuscleMaskLocation, 0);
+        api.Uniform1(_hasMuscleNormalLocation, 0);
+        api.Uniform1(_hasMuscleMultiLocation, 0);
+        api.Uniform1(_skinMaterialLocation, 0);
         api.Uniform4(_colorChannelsLocation, 0f, 0f, 0f, 0f);
         api.Uniform1(_multiplyColorLocation, 0);
         api.Uniform1(_alphaCutoffLocation, 0f);

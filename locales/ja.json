@@ -19,7 +19,7 @@
         "LoadAqm": "_sa.aqmを開く…",
         "ResetShape": "体型をリセット",
         "SaveAqm": "_sa.aqmを保存…",
-        "CameraHelp": "左右ドラッグ：回転   Ctrl+ドラッグ：上下移動   中クリック：視点リセット   ホイール：ズーム",
+        "CameraHelp": "左ドラッグ：カメラ回転   右ドラッグ：モデル回転   Ctrl+ドラッグ：上下移動   中クリック：リセット   ホイール：ズーム",
         "Ready": "準備完了",
         "Statistics": "モデル {0:N0} · 頂点 {1:N0} · 三角形 {2:N0} · テクスチャ {3:N0} · {4:F1} fps",
         "Scale": "スケール (S)",
@@ -142,7 +142,8 @@
         "MissingBoneFields": "カスタムグループにはグループ名と必要なボーン名を入力してください。",
         "BoneNotFound": "現在のスケルトンに存在しないボーンです：{0}",
         "DuplicateBone": "ボーン「{0}」は別の有効なグループに割り当て済みです。",
-        "OptionsSaved": "オプションを保存しました。"
+        "OptionsSaved": "オプションを保存しました。",
+        "DemoLighting": "デモ照明プレビュー"
     },
     "shapeNames": {
         "bodyroot": "足裏の高さ (body_root Y)",

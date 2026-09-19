@@ -157,6 +157,12 @@ public partial class MainWindow : Window
                 Viewport.SetCharacterColors(_characterColors);
             }
 
+            if (result.Surface is { } surface)
+            {
+                _characterSurface = surface;
+                Viewport.SetCharacterSurface(_characterSurface);
+            }
+
             if (result.ShapeAdjust is not null)
             {
                 CommitPendingShapeEdit();
@@ -218,6 +224,7 @@ public partial class MainWindow : Window
         AqnSkeleton? skeleton = null;
         ProportionResult? proportions = null;
         CharacterColorPalette? colors = null;
+        CharacterSurfaceSettings? surface = null;
         ShapeAdjustFile? shapeAdjust = null;
         var archiveEntryCount = 0;
         var archiveDdsCount = 0;
@@ -279,6 +286,7 @@ public partial class MainWindow : Window
             var character = CharacterFile.Load(characterPath);
             proportions = Proportions.Compute(character);
             colors = CharacterColorPalette.FromCharacter(character);
+            surface = CharacterSurfaceSettings.FromCharacter(character);
         }
 
         if (explicitAqm is not null)
@@ -291,6 +299,7 @@ public partial class MainWindow : Window
             models,
             proportions,
             colors,
+            surface,
             shapeAdjust,
             archiveEntryCount,
             archiveDdsCount);

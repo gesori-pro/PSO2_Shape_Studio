@@ -141,4 +141,5 @@ public enum AppText
     BoneNotFound,
     DuplicateBone,
     OptionsSaved,
+    DemoLighting,
 }

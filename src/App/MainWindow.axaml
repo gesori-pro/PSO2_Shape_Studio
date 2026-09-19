@@ -47,6 +47,7 @@
             </ComboBox>
             <CheckBox x:Name="FloorGuideCheckBox" Content="Floor guide" IsChecked="True"
                       ToolTip.Tip="Show the world Y=0 floor guide" />
+            <CheckBox x:Name="DemoLightingCheckBox" Content="Demo lighting (preview)" IsChecked="False" />
             <Button x:Name="OptionsButton" Content="Options…" />
           </StackPanel>
         </Grid>
@@ -300,7 +301,7 @@
 
         <TextBlock Grid.Row="5" x:Name="CameraHelpText" Margin="0,11,0,0" TextWrapping="Wrap"
                    Foreground="{DynamicResource MutedTextBrush}" FontSize="11"
-                   Text="L/R drag: rotate   Ctrl+drag: move vertically   Middle click: reset view   Wheel: zoom" />
+                   Text="Left drag: rotate camera   Right drag: rotate model   Ctrl+drag: move vertically   Middle click: reset   Wheel: zoom" />
       </Grid>
     </Border>
 

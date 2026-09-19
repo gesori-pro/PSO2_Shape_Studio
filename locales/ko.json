@@ -19,7 +19,7 @@
         "LoadAqm": "_sa.aqm 불러오기…",
         "ResetShape": "체형 초기화",
         "SaveAqm": "_sa.aqm 저장…",
-        "CameraHelp": "좌/우 드래그: 회전   Ctrl+드래그: 상하 이동   휠클릭: 시점 초기화   휠: 줌",
+        "CameraHelp": "좌클릭 드래그: 카메라 회전   우클릭 드래그: 모델 회전   Ctrl+드래그: 상하 이동   휠클릭: 초기화   휠: 줌",
         "Ready": "준비",
         "Statistics": "모델 {0:N0} · 정점 {1:N0} · 삼각형 {2:N0} · 텍스처 {3:N0} · {4:F1} fps",
         "Scale": "스케일 (S)",
@@ -142,7 +142,8 @@
         "MissingBoneFields": "사용자 그룹에는 그룹 이름과 필요한 본 이름을 모두 입력해야 합니다.",
         "BoneNotFound": "현재 스켈레톤에 없는 본입니다: {0}",
         "DuplicateBone": "본 '{0}'은(는) 이미 다른 활성 그룹에 지정되어 있습니다.",
-        "OptionsSaved": "옵션을 저장했습니다."
+        "OptionsSaved": "옵션을 저장했습니다.",
+        "DemoLighting": "데모 조명 미리보기"
     },
     "shapeNames": {
         "bodyroot": "발바닥 높이 (body_root Y)",

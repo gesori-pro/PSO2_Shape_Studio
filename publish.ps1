@@ -90,8 +90,15 @@ Invoke-Dotnet @(
 # Skia and HarfBuzz ship ~100 MB of native symbols that no end user needs.
 Get-ChildItem -Path $publishDir -Recurse -Filter '*.pdb' | Remove-Item -Force
 
-# The licence and the three readmes sit beside the executable in the package.
-foreach ($document in @('LICENSE', 'README.md', 'README.ko.md', 'README.ja.md', 'LOCALIZATION.md')) {
+# The licence and all localized readmes sit beside the executable in the package.
+foreach ($document in @(
+    'LICENSE',
+    'README.md',
+    'README.ko.md',
+    'README.ja.md',
+    'README.zh-Hans.md',
+    'README.zh-Hant.md',
+    'LOCALIZATION.md')) {
     Copy-Item -Path (Join-Path $repoRoot $document) -Destination $publishDir -Force
 }
 

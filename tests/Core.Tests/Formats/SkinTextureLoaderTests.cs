@@ -35,5 +35,10 @@ public sealed class SkinTextureLoaderTests
         Assert.Equal("pl_rbd_200000_sk_n.dds", archive.Textures.Normal!.Name);
         Assert.Equal("pl_rbd_200000_sk_s.dds", archive.Textures.Multi!.Name);
         Assert.Equal(4, archive.Textures.Count);
+        Assert.Equal("pl_rbd_200001_sk_m.dds", archive.MuscleTextures.Mask!.Name);
+        Assert.Equal("pl_rbd_200001_sk_n.dds", archive.MuscleTextures.Normal!.Name);
+        Assert.Equal(4, archive.MuscleTextures.Count);
+        Assert.Same(archive.Textures.Diffuse, archive.MuscleTextures.Diffuse);
+        Assert.Same(archive.Textures.Multi, archive.MuscleTextures.Multi);
     }
 }
