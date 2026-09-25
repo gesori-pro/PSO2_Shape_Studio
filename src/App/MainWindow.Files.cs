@@ -113,11 +113,16 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <param name="bodyColorMappings">
+    /// Each model file's colour channels, from its catalog record. Left out,
+    /// files opened directly are looked up in the catalog instead.
+    /// </param>
     /// <param name="legLength">
     /// The CMX ground-contact factor of the outfit being loaded, or null when
-    /// it is unknown (a dropped file) or irrelevant (a character file). It is
-    /// only adopted when this load actually brings in geometry, so opening a
-    /// character file keeps the outfit's value instead of clearing it.
+    /// it is unknown or irrelevant (a character file). Left out together with
+    /// the mappings, it comes from the catalog as well. It is only adopted
+    /// when this load actually brings in geometry, so opening a character
+    /// file keeps the outfit's value instead of clearing it.
     /// </param>
     private async Task LoadPathsAsync(
         IEnumerable<string> inputPaths,
@@ -132,6 +137,11 @@ public partial class MainWindow : Window
         if (paths.Length == 0)
         {
             return;
+        }
+
+        if (bodyColorMappings is null && legLength is null)
+        {
+            (bodyColorMappings, legLength) = ResolveOpenedWear(paths);
         }
 
         IsEnabled = false;

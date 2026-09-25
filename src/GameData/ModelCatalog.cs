@@ -186,6 +186,45 @@ public sealed class ModelCatalog
         return reader.Read() ? ReadRecord(reader) : null;
     }
 
+    /// <summary>
+    /// The wear record a model file belongs to, when it is opened directly
+    /// rather than found by search: by the hash it has under data\win32, or
+    /// by its own name (pl_bw_201600_ex.ice) when it was extracted.
+    /// </summary>
+    public ModelCatalogRecord? FindWearByFile(string filePath)
+    {
+        var name = Path.GetFileName(filePath).ToLowerInvariant();
+        if (name.Length == 0)
+        {
+            return null;
+        }
+
+        using var connection = OpenReadOnly();
+        using var command = connection.CreateCommand();
+        var types = new List<string>();
+        foreach (var (objectType, index) in WearObjectTypes.Append("innerwear").Select((type, i) => (type, i)))
+        {
+            types.Add($"$type{index}");
+            command.Parameters.AddWithValue($"$type{index}", objectType);
+        }
+
+        command.CommandText = $"""
+            SELECT {RecordColumns}
+            FROM objects
+            WHERE object_type IN ({string.Join(", ", types)}) AND
+                  (hash = $name OR ex_hash = $name OR
+                   substr(lower(file_name), -$suffixLength) = $suffix OR
+                   substr(lower(COALESCE(ex_file_name, '')), -$suffixLength) = $suffix)
+            ORDER BY object_type, id
+            LIMIT 1
+            """;
+        command.Parameters.AddWithValue("$name", name);
+        command.Parameters.AddWithValue("$suffix", "/" + name);
+        command.Parameters.AddWithValue("$suffixLength", name.Length + 1);
+        using var reader = command.ExecuteReader();
+        return reader.Read() ? ReadRecord(reader) : null;
+    }
+
     private static List<ModelCatalogRecord> ReadRecords(SqliteCommand command)
     {
         using var reader = command.ExecuteReader();

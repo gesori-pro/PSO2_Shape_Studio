@@ -132,6 +132,43 @@ public sealed class ModelCatalogTests
     }
 
     [Fact]
+    public void FindWearByFile_MatchesEitherHashOrTheExtractedName()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"pso2-catalog-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "objects.db");
+        try
+        {
+            CreateDatabase(path);
+            var catalog = new ModelCatalog(path);
+
+            foreach (var file in new[]
+            {
+                @"G:\pso2_bin\data\win32\1e75629697436ed480353c3ebc1c59b3",
+                @"G:\pso2_bin\data\win32\CF540EC3FF917CD65E9FD3E67F4FECFA",
+                @"C:\extracted\pl_bw_201630_ex.ice",
+                @"C:\extracted\PL_BW_201630.ice",
+            })
+            {
+                var record = catalog.FindWearByFile(file);
+                Assert.NotNull(record);
+                Assert.Equal(201630, record.Id);
+                Assert.Equal(1.03341f, record.LegLength!.Value, 5);
+                Assert.Equal(new ModelColorMapping(3, 4, 0, 0), record.ColorMapping);
+            }
+
+            // Only wear: a hair file, and names that merely end alike, match nothing.
+            Assert.Null(catalog.FindWearByFile(@"G:\pso2_bin\data\win32\c"));
+            Assert.Null(catalog.FindWearByFile(@"C:\extracted\x_pl_bw_201630.ice"));
+            Assert.Null(catalog.FindWearByFile(@"C:\extracted\unknown.ice"));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Search_MatchesTypeIdNameAndHashTokens()
     {
         var root = Path.Combine(Path.GetTempPath(), $"pso2-catalog-{Guid.NewGuid():N}");

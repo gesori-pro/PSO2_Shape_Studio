@@ -357,6 +357,48 @@ public partial class MainWindow : Window
         return paths;
     }
 
+    /// <summary>
+    /// What a search hands a load, for model files opened directly (the file
+    /// dialog, a drop, the command line): each file's colour channels, and
+    /// the ground contact of the first one that carries footwear. Without
+    /// them an opened outfit came up in its textures' own colours and sank
+    /// into the floor as deep as its heels.
+    /// </summary>
+    private (IReadOnlyDictionary<string, Pso2ColorMapping>? Mappings, float? LegLength)
+        ResolveOpenedWear(IReadOnlyList<string> paths)
+    {
+        if (_catalog is not { Exists: true })
+        {
+            return (null, null);
+        }
+
+        var mappings = new Dictionary<string, Pso2ColorMapping>(StringComparer.OrdinalIgnoreCase);
+        float? legLength = null;
+        foreach (var path in paths.Where(IsArchivePath))
+        {
+            ModelCatalogRecord? record;
+            try
+            {
+                record = _catalog.FindWearByFile(path);
+            }
+            catch (Exception)
+            {
+                // An outdated or unreadable catalog: load as before.
+                return (null, null);
+            }
+
+            if (record is null)
+            {
+                continue;
+            }
+
+            mappings[path] = ToColorMapping(record.ColorMapping);
+            legLength ??= record.LegLength;
+        }
+
+        return (mappings.Count > 0 ? mappings : null, legLength);
+    }
+
     private static Pso2ColorMapping ToColorMapping(ModelColorMapping mapping) =>
         new(
             (Pso2ColorChannel)mapping.Red,
