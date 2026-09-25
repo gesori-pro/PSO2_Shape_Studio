@@ -342,8 +342,11 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void RefreshViewportModels() =>
+    private void RefreshViewportModels()
+    {
         Viewport.SetModels(Models.Where(entry => entry.Visible).Select(entry => entry.Model));
+        UpdateGroundLift();
+    }
 
     private static bool IsSupportedPath(string path)
     {

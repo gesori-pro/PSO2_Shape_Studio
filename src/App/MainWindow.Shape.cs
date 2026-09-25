@@ -296,5 +296,22 @@ public partial class MainWindow : Window
 
         var pose = composer.Build();
         Viewport.SetSkinMatrices(pose.SkinMatrices);
+        _skinMatrices = pose.SkinMatrices;
+        UpdateGroundLift();
+    }
+
+    /// <summary>
+    /// Stands the shown models on their soles. The legLength already in the
+    /// pose gets most outfits there; this takes up what it misses.
+    /// </summary>
+    private void UpdateGroundLift()
+    {
+        var lift = _skeleton is not null && _skinMatrices is not null
+            ? GroundContact.Lift(
+                Models.Where(entry => entry.Visible).Select(entry => entry.Model),
+                _skeleton,
+                _skinMatrices)
+            : null;
+        Viewport.SetGroundLift(lift ?? 0f);
     }
 }

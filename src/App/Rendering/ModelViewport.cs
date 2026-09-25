@@ -28,6 +28,7 @@ public sealed partial class ModelViewport : OpenGlControlBase
     private RenderSkinTextureSet? _pendingSkinTextureT2;
     private CharacterColorPalette _pendingCharacterColors = CharacterColorPalette.Default;
     private float _muscularity;
+    private float _groundLift;
     private float _skinGloss;
     private Matrix4x4[] _pendingSkinMatrices = IdentityBones();
     private bool _sceneDirty = true;
@@ -176,6 +177,16 @@ public sealed partial class ModelViewport : OpenGlControlBase
             _sceneDirty = true;
         }
 
+        RequestNextFrameRendering();
+    }
+
+    /// <summary>
+    /// How far to raise the models so they stand on the floor (see
+    /// GroundContact); the floor guide and camera stay where they are.
+    /// </summary>
+    public void SetGroundLift(float lift)
+    {
+        Volatile.Write(ref _groundLift, lift);
         RequestNextFrameRendering();
     }
 
@@ -337,7 +348,8 @@ public sealed partial class ModelViewport : OpenGlControlBase
             var viewProjection = BuildViewProjection(width / (float)height);
             var cameraPosition = CameraPosition();
             var identityTransform = Matrix4x4.Identity;
-            var modelTransform = Matrix4x4.CreateRotationY(_modelYaw);
+            var modelTransform = Matrix4x4.CreateRotationY(_modelYaw) *
+                                 Matrix4x4.CreateTranslation(0f, Volatile.Read(ref _groundLift), 0f);
             var sortingModelTransform = modelTransform;
             _gl.UseProgram(_program);
             _gl.UniformMatrix4(_viewProjectionLocation, 1, false, (float*)&viewProjection);

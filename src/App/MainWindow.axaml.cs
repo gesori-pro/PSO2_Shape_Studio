@@ -75,6 +75,7 @@ public partial class MainWindow : Window
     /// outfit with a value is loaded, which leaves the pose untouched.
     /// </summary>
     private float? _outfitLegLength;
+    private IReadOnlyList<Matrix4x4>? _skinMatrices;
     private readonly Dictionary<string, RenderSkinTextureSet> _skinTextureCache =
         new(StringComparer.OrdinalIgnoreCase);
     private ViewportStatistics? _lastStatistics;
