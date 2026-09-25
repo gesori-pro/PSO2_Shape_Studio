@@ -44,6 +44,9 @@ public sealed partial class ModelViewport : OpenGlControlBase
     private int _skinGlossLocation;
     private int _demoEnvironmentLocation;
     private uint _demoEnvironment;
+    private int _gameMaterialLocation;
+    private int _gameEnvironmentLocation;
+    private uint _gameEnvironment;
     private uint _hdrFramebuffer, _hdrColor, _hdrDepth, _toneProgram, _toneVao;
     private uint _hdrWidth, _hdrHeight;
 
@@ -211,6 +214,8 @@ public sealed partial class ModelViewport : OpenGlControlBase
             _muscularityLocation = _gl.GetUniformLocation(_program, "uMuscularity");
             _skinGlossLocation = _gl.GetUniformLocation(_program, "uSkinGloss");
             _demoEnvironmentLocation = _gl.GetUniformLocation(_program, "uDemoEnvironment");
+            _gameMaterialLocation = _gl.GetUniformLocation(_program, "uGameMaterial");
+            _gameEnvironmentLocation = _gl.GetUniformLocation(_program, "uGameEnvironment");
             _viewProjectionLocation = _gl.GetUniformLocation(_program, "uViewProjection");
             _modelTransformLocation = _gl.GetUniformLocation(_program, "uModelTransform");
             _useSkinningLocation = _gl.GetUniformLocation(_program, "uUseSkinning");
@@ -257,6 +262,7 @@ public sealed partial class ModelViewport : OpenGlControlBase
                 BufferUsageARB.DynamicDraw);
             _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, _boneBuffer);
             _demoEnvironment = CreateDemoEnvironmentCube(_gl);
+            _gameEnvironment = CreateCreatorEnvironmentCube(_gl);
             CreateFloorGuide(_gl);
 
             _gl.Enable(EnableCap.DepthTest);
@@ -287,6 +293,8 @@ public sealed partial class ModelViewport : OpenGlControlBase
             DeleteDemoTargets(_gl);
             if (_demoEnvironment != 0) _gl.DeleteTexture(_demoEnvironment);
             _demoEnvironment = 0;
+            if (_gameEnvironment != 0) _gl.DeleteTexture(_gameEnvironment);
+            _gameEnvironment = 0;
             if (_toneProgram != 0) _gl.DeleteProgram(_toneProgram);
             if (_toneVao != 0) _gl.DeleteVertexArray(_toneVao);
             _toneProgram = _toneVao = 0;
@@ -319,8 +327,11 @@ public sealed partial class ModelViewport : OpenGlControlBase
             if (_demoLighting) EnsureDemoTargets(_gl, width, height);
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _demoLighting ? _hdrFramebuffer : (uint)framebuffer);
             _gl.Viewport(0, 0, width, height);
-            var clear = _demoLighting ? new Vector3(InverseDemoTone(_background.X), InverseDemoTone(_background.Y), InverseDemoTone(_background.Z)) : _background;
-            _gl.ClearColor(clear.X, clear.Y, clear.Z, 1f);
+            // In demo lighting the background is cleared to what the tone
+            // pass turns into the chosen colour, with alpha 0 so the glare
+            // can tell it from the character.
+            var clear = _demoLighting ? DemoBackground() : _background;
+            _gl.ClearColor(clear.X, clear.Y, clear.Z, _demoLighting ? 0f : 1f);
             _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
 
             var viewProjection = BuildViewProjection(width / (float)height);
@@ -344,6 +355,7 @@ public sealed partial class ModelViewport : OpenGlControlBase
             _gl.Uniform1(_normalTextureLocation, 2);
             _gl.Uniform1(_multiTextureLocation, 3);
             _gl.Uniform1(_demoEnvironmentLocation, 4);
+            _gl.Uniform1(_gameEnvironmentLocation, 9);
             _gl.Uniform1(_muscleDiffuseTextureLocation, 5);
             _gl.Uniform1(_muscleMaskTextureLocation, 6);
             _gl.Uniform1(_muscleNormalTextureLocation, 7);
@@ -352,13 +364,17 @@ public sealed partial class ModelViewport : OpenGlControlBase
             _gl.Uniform1(_skinGlossLocation, _skinGloss);
             _gl.ActiveTexture(TextureUnit.Texture4);
             _gl.BindTexture(TextureTarget.TextureCubeMap, _demoEnvironment);
+            _gl.ActiveTexture(TextureUnit.Texture9);
+            _gl.BindTexture(TextureTarget.TextureCubeMap, _gameEnvironment);
             _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, _boneBuffer);
 
             // The translucent surface writes depth before the models. From a
             // normal above-floor view, geometry above Y=0 stays visible while
             // geometry below it is cleanly hidden at the intersection.
+            _gl.Uniform1(_gameMaterialLocation, 0);
             DrawFloorSurface(_gl);
             _gl.UniformMatrix4(_modelTransformLocation, 1, false, (float*)&modelTransform);
+            _gl.Uniform1(_gameMaterialLocation, 1);
             _gl.Uniform1(_useSkinningLocation, 1);
             _gl.Uniform1(_blendModeLocation, (int)MaterialBlendMode.Opaque);
 
@@ -476,12 +492,13 @@ public sealed partial class ModelViewport : OpenGlControlBase
             }
 
             _gl.UniformMatrix4(_modelTransformLocation, 1, false, (float*)&identityTransform);
+            _gl.Uniform1(_gameMaterialLocation, 0);
             DrawFloorGrid(_gl);
             _gl.DepthMask(true);
             _gl.Disable(EnableCap.Blend);
             _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             _gl.BindVertexArray(0);
-            if (_demoLighting) DrawDemoTone(_gl, (uint)framebuffer);
+            if (_demoLighting) DrawDemoTone(_gl, (uint)framebuffer, clear);
             RecordRenderedFrame();
         }
         catch (Exception exception)
@@ -496,6 +513,14 @@ public sealed partial class ModelViewport : OpenGlControlBase
         ReportRendererStatus(AppLocalizer.Text(_language, AppText.RendererContextLost));
         base.OnOpenGlLost();
     }
+
+    // What demo lighting clears the background to: the value the tone pass
+    // turns into the chosen colour. (The glare, in the tone pass, leaves the
+    // background alone.)
+    private Vector3 DemoBackground() => new(
+        InverseDemoTone(_background.X),
+        InverseDemoTone(_background.Y),
+        InverseDemoTone(_background.Z));
 
     // Capture frame16602, event3396: x*(3*x+.03)/(x*(3*x+1)+.14), exposure .84.
     // Invert the curve for the UI background so changing the lighting keeps its chosen color.
@@ -514,8 +539,11 @@ public sealed partial class ModelViewport : OpenGlControlBase
         _hdrColor = api.GenTexture();
         api.BindTexture(TextureTarget.Texture2D, _hdrColor);
         api.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgba16f, width, height, 0, PixelFormat.Rgba, PixelType.HalfFloat, null);
-        api.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Nearest);
-        api.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Nearest);
+        // The glare reads the frame blurred, from its mips.
+        api.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.LinearMipmapLinear);
+        api.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+        api.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
+        api.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
         _hdrDepth = api.GenRenderbuffer();
         api.BindRenderbuffer(RenderbufferTarget.Renderbuffer, _hdrDepth);
         api.RenderbufferStorage(RenderbufferTarget.Renderbuffer, InternalFormat.DepthComponent24, width, height);
@@ -638,7 +666,87 @@ public sealed partial class ModelViewport : OpenGlControlBase
             intensity;
     }
 
-    private void DrawDemoTone(GL api, uint target)
+    // The character creator's lighting environment (s_CubeExtTex of capture
+    // frame 16602). Its lighting pass reads the 256-texel cube at mip 7.5
+    // only, so mips 7 and 8 - two by two and one texel a face - are all of
+    // it that shows: here as the two levels of a small cube, read at 0.5.
+    // Linear RGB; faces +X, -X, +Y, -Y, +Z, -Z, rows top to bottom.
+    private static readonly float[][] CreatorEnvironment =
+    [
+        [
+            0.54004f, 0.48657f, 0.49194f, 0.40967f, 0.41089f, 0.54004f, 0.52246f, 0.38379f, 0.24536f, 0.44556f, 0.33740f, 0.19714f,
+            0.10419f, 0.13708f, 0.21277f, 0.15247f, 0.16724f, 0.13489f, 0.51855f, 0.36938f, 0.20032f, 0.51953f, 0.37939f, 0.22083f,
+            0.24353f, 0.31201f, 0.51758f, 0.08301f, 0.14404f, 0.32690f, 0.07373f, 0.10748f, 0.17090f, 0.02919f, 0.06384f, 0.16821f,
+            0.68115f, 0.48682f, 0.31030f, 0.59277f, 0.41333f, 0.24634f, 0.55029f, 0.38525f, 0.21289f, 0.52979f, 0.36255f, 0.20068f,
+            0.16992f, 0.22534f, 0.35034f, 0.62793f, 0.56689f, 0.59717f, 0.54639f, 0.42676f, 0.27881f, 0.57861f, 0.43115f, 0.28052f,
+            0.16211f, 0.23914f, 0.46411f, 0.60400f, 0.65430f, 0.76172f, 0.32275f, 0.26440f, 0.13293f, 0.40015f, 0.31494f, 0.16223f,
+        ],
+        [
+            0.47949f, 0.40479f, 0.36865f,
+            0.32373f, 0.26318f, 0.19226f,
+            0.10736f, 0.15686f, 0.29590f,
+            0.58838f, 0.41211f, 0.24255f,
+            0.48071f, 0.41260f, 0.37671f,
+            0.37231f, 0.36816f, 0.38037f,
+        ],
+    ];
+
+    private static unsafe uint CreateCreatorEnvironmentCube(GL api)
+    {
+        var texture = api.GenTexture();
+        try
+        {
+            api.BindTexture(TextureTarget.TextureCubeMap, texture);
+            api.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
+            for (var level = 0; level < CreatorEnvironment.Length; level++)
+            {
+                var size = 2 >> level;
+                var texels = size * size;
+                for (var face = 0; face < 6; face++)
+                {
+                    var pixels = new float[texels * 4];
+                    for (var i = 0; i < texels; i++)
+                    {
+                        var source = (face * texels + i) * 3;
+                        pixels[i * 4] = CreatorEnvironment[level][source];
+                        pixels[i * 4 + 1] = CreatorEnvironment[level][source + 1];
+                        pixels[i * 4 + 2] = CreatorEnvironment[level][source + 2];
+                        pixels[i * 4 + 3] = 1f;
+                    }
+
+                    fixed (float* pointer = pixels)
+                    {
+                        api.TexImage2D(
+                            (TextureTarget)((int)TextureTarget.TextureCubeMapPositiveX + face),
+                            level,
+                            InternalFormat.Rgba16f,
+                            (uint)size,
+                            (uint)size,
+                            0,
+                            PixelFormat.Rgba,
+                            PixelType.Float,
+                            pointer);
+                    }
+                }
+            }
+
+            api.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter, (int)GLEnum.LinearMipmapLinear);
+            api.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+            api.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
+            api.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
+            api.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR, (int)GLEnum.ClampToEdge);
+            api.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureBaseLevel, 0);
+            api.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMaxLevel, CreatorEnvironment.Length - 1);
+            return texture;
+        }
+        catch
+        {
+            api.DeleteTexture(texture);
+            throw;
+        }
+    }
+
+    private void DrawDemoTone(GL api, uint target, Vector3 background)
     {
         api.BindFramebuffer(FramebufferTarget.Framebuffer, target);
         api.Disable(EnableCap.DepthTest);
@@ -646,7 +754,13 @@ public sealed partial class ModelViewport : OpenGlControlBase
         api.UseProgram(_toneProgram);
         api.ActiveTexture(TextureUnit.Texture0);
         api.BindTexture(TextureTarget.Texture2D, _hdrColor);
+        api.GenerateMipmap(TextureTarget.Texture2D);
         api.Uniform1(api.GetUniformLocation(_toneProgram, "uScene"), 0);
+        api.Uniform3(
+            api.GetUniformLocation(_toneProgram, "uBackground"),
+            background.X,
+            background.Y,
+            background.Z);
         api.BindVertexArray(_toneVao);
         api.DrawArrays(PrimitiveType.Triangles, 0, 3);
         api.BindVertexArray(0);

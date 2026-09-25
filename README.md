@@ -39,8 +39,9 @@ post-adjustments without using Blender.
 - Automatically load Outerwear and Innerwear linked to a selected Setwear item.
 - Use English (Global) and Japanese item names where catalog data is available.
 - Select Type 1 and Type 2 skin textures from the local game data.
-- Enable an optional studio-lighting preview with HDR tone mapping to inspect
-  skin, gloss, and surface detail under fixed lighting.
+- Enable an optional demo-lighting preview that lights the character the way
+  the NGS character creator does (its sun, fill and camera light, ambient,
+  glare and tone curve) to inspect skin, gloss, and surface detail.
 - Apply a character file's muscle value to its skin textures. Wet and dry skin
   rendering is experimental and is still being implemented and validated.
 - Use NGS-style viewport controls: left-drag rotates the camera, right-drag

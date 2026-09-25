@@ -104,6 +104,8 @@ public sealed partial class ModelViewport
         in vec2 vUv2;
         in vec2 vUv3;
         uniform bool uDemoLighting;
+        uniform bool uGameMaterial;
+        uniform samplerCube uGameEnvironment;
         uniform bool uSkinMaterial;
         uniform float uMuscularity;
         uniform float uSkinGloss;
@@ -141,10 +143,36 @@ public sealed partial class ModelViewport
         uniform int uBlendMode;
         out vec4 FragColor;
 
-        vec3 colorize(vec3 inputColor, vec3 target, float factor)
+        vec3 srgbEncode(vec3 color)
         {
-            vec3 result = uMultiplyColor ? inputColor * target : target;
-            return mix(inputColor, result, clamp(factor, 0.0, 1.0));
+            color = max(color, vec3(0.0));
+            return mix(color * 12.92, 1.055 * pow(color, vec3(1.0 / 2.4)) - 0.055,
+                       step(0.0031308, color));
+        }
+
+        vec3 srgbDecode(vec3 color)
+        {
+            color = max(color, vec3(0.0));
+            return mix(color / 12.92, pow((color + 0.055) / 1.055, vec3(2.4)),
+                       step(0.04045, color));
+        }
+
+        // The game composites a character's textures once, at load, in
+        // sRGB space (reboot_*_diffuse): the diffuse as stored, each colour
+        // as its 0-255 value over 255 squeezed to 0.005..0.995, blended over
+        // it in turn. Skin (multiply) builds the same blend from white and
+        // multiplies the texture by it once. Blended as linear values
+        // instead, a part-strength mask moves the colour far less: skin came
+        // out paler, its blood colour barely showing.
+        vec3 colorize(vec3 linearColor, vec4 mask)
+        {
+            vec3 source = srgbEncode(linearColor);
+            vec3 layered = uMultiplyColor ? vec3(1.0) : source;
+            layered = mix(layered, srgbEncode(uColor1.rgb) * 0.99 + 0.005, clamp(mask.r, 0.0, 1.0));
+            layered = mix(layered, srgbEncode(uColor2.rgb) * 0.99 + 0.005, clamp(mask.g, 0.0, 1.0));
+            layered = mix(layered, srgbEncode(uColor3.rgb) * 0.99 + 0.005, clamp(mask.b, 0.0, 1.0));
+            layered = mix(layered, srgbEncode(uColor4.rgb) * 0.99 + 0.005, clamp(mask.a, 0.0, 1.0));
+            return srgbDecode(uMultiplyColor ? source * layered : layered);
         }
 
         vec2 selectUv(int setIndex)
@@ -181,9 +209,174 @@ public sealed partial class ModelViewport
             return normalize(mat3(tangent, bitangent, geometryNormal) * tangentNormal);
         }
 
+        // ---- Demo lighting: the game's own shading. What the character
+        // creator's G-buffer shaders (1100g costume, 1102g skin) make of a
+        // material, lit the way its deferred lighting pass lights models 0
+        // and 4, with the creator's headlight. The same as the Blender
+        // add-on's game shading, which matched the lighting pass of a
+        // captured creator frame to 1.2% (median per pixel). There are no
+        // shadows or screen-space occlusion here: every point sees the sun.
+        const float PI = 3.14159265;
+        // Every character shader darkens the diffuse texture by this much.
+        const float ALBEDO_SCALE = 0.61;
+        // How far a soft area wraps light round to its dark side.
+        const float SKIN_SUBSURFACE = 0.153;
+        const float COSTUME_SUBSURFACE = 0.25;
+        // What skin's wrapped light is tinted by: a deep red, squared.
+        const vec3 SKIN_SCATTER = vec3(0.31557, 0.00017, 0.0);
+        const float EXPOSURE = 0.84;
+        const float SUN_STRENGTH = 12.56;
+        const vec3 SKY_COLOR = vec3(0.0375, 0.075, 0.125);
+        // The point light on the creator's camera: 1.665 / (1 + 0.24 d).
+        const float HEADLIGHT = 1.665;
+        const float HEADLIGHT_ATTENUATION = 0.24;
+
+        float normalAlpha()
+        {
+            if (!uHasNormal)
+            {
+                return 1.0;
+            }
+            vec2 normalUv = selectUv(uNormalUvSet);
+            float alpha = texture(uNormalTexture, normalUv).a;
+            if (uSkinMaterial && uHasMuscleNormal)
+            {
+                alpha = mix(alpha, texture(uMuscleNormalTexture, normalUv).a, uMuscularity);
+            }
+            return alpha;
+        }
+
+        float smithG1(float x, float a2)
+        {
+            float inner = x * x * (1.0 - a2) + a2;
+            return 2.0 * x * x / (inner * inner + x);
+        }
+
+        // GGX with the game's own geometry term and Fresnel, times N.L.
+        vec3 gameSpecular(vec3 n, vec3 v, vec3 l, float ndl, vec3 f0, float a2)
+        {
+            vec3 h = normalize(v + l);
+            float ndv = max(dot(n, v), 1e-3);
+            float ndh = max(dot(n, h), 1e-3);
+            float vdh = max(dot(v, h), 1e-3);
+            vec3 fresnel = f0 + (1.0 - f0) * exp2(-12.5378895 * vdh);
+            float den = ndh * ndh * (a2 - 1.0) + 1.0;
+            float d = a2 / (PI * den * den);
+            float g = smithG1(ndv, a2) * smithG1(ndl, a2);
+            return fresnel * (d * g / (4.0 * ndv * ndl + 1e-7) * ndl);
+        }
+
+        // Lambert on what is not soft; the soft part wraps round by its
+        // amount and takes the tint.
+        vec3 gameDiffuse(float ndl, float soft, float occlusion, vec3 tint)
+        {
+            float wrap = max((ndl + 2.0) * soft / 3.0, 0.0);
+            return tint * wrap + vec3(clamp(ndl, 0.0, 1.0) * occlusion * (1.0 - soft));
+        }
+
+        vec3 gameShade(vec3 colorized, vec4 multi, vec3 n, vec3 vertexNormal)
+        {
+            vec3 v = normalize(uCameraPosition - vPosition);
+
+            // The normal map's alpha marks soft areas: at or below one half
+            // they wrap by the full amount, fading out towards one.
+            float softAlpha = clamp(normalAlpha() * 1.02, 0.0, 1.0);
+            float hardness = clamp(softAlpha * 2.0 - 1.0, 0.0, 1.0);
+            float subsurface = (1.0 - hardness) *
+                (uSkinMaterial ? SKIN_SUBSURFACE : COSTUME_SUBSURFACE);
+
+            // Skin gloss (the signed skinGloss / 127), on the body only where
+            // it is soft: wet is up to 70% glossier and 20% darker, dry
+            // goes towards fully rough.
+            float roughness = multi.g;
+            float wetColor = 1.0;
+            if (uSkinMaterial)
+            {
+                float wet = clamp(uSkinGloss, -1.0, 1.0) * clamp(subsurface * 8.0, 0.0, 1.0);
+                float wetter = clamp(wet, 0.0, 1.0);
+                roughness = mix(roughness * (1.0 - 0.7 * wetter), 1.0, clamp(-wet, 0.0, 1.0));
+                wetColor = 1.0 - 0.2 * wetter;
+            }
+
+            // The multi map's alpha glows above 0.02; what glows is taken
+            // out of the diffuse and carries no subsurface.
+            vec3 albedo = colorized * ALBEDO_SCALE;
+            float gate = clamp(multi.a - 0.02, 0.0, 1.0);
+            float glowing = gate < 1e-3 ? 0.0 : 1.0;
+            float soft = subsurface * (1.0 - glowing);
+            vec3 glow = pow(
+                75.0 * gate * gate * (albedo * albedo * 0.995 + 0.005),
+                vec3(1.3)) / EXPOSURE;
+            vec3 scatter = uSkinMaterial ? SKIN_SCATTER * wetColor : albedo;
+            scatter *= soft > 1.0 / 255.0 - 1e-6 ? 1.0 : 0.0;
+            scatter = mix(scatter, glow, glowing);
+            vec3 base = albedo * (1.0 - gate) * wetColor;
+
+            // Soft silhouettes take light from behind.
+            float rimMask = clamp(softAlpha * -2.0 + 1.0, 0.0, 1.0);
+            float facing = 1.0 - dot(vertexNormal, v);
+            float rim = min(facing * facing * abs(facing) * rimMask, 1.0) * soft;
+
+            float metal = multi.r * multi.r;
+            float occlusion = multi.b;
+            vec3 diffuseColor = base * (1.0 - metal);
+            vec3 f0 = mix(vec3(0.04), base, metal);
+            vec3 tintA = base * (1.0 - soft) + scatter * soft * soft;
+            vec3 tintB = base * (1.0 - soft) + scatter * soft;
+            float alpha = pow(max(roughness, 0.05), 2.0);
+            float a2 = alpha * alpha;
+
+            // Characters never see the sun dimmer than 1 / (0.7 exposure),
+            // and take a fill of 0.3 of that from the opposite side.
+            vec3 sun = normalize(uLightDirection);
+            // Skin sees it with its vertical component cut to a quarter.
+            vec3 l = uSkinMaterial ? normalize(vec3(sun.x, sun.y * 0.25, sun.z)) : sun;
+            float floorLight = 1.0 / (0.7 * EXPOSURE);
+            float sunLight = max(SUN_STRENGTH, floorLight);
+            float fill = 0.3 * floorLight;
+
+            // the sun
+            float ndl = dot(n, l);
+            float ndlS = clamp(ndl, 0.0, 1.0);
+            vec3 direct = gameDiffuse(ndl, soft, occlusion, tintA) +
+                          tintB * ((0.5 - 0.5 * ndl) * rim);
+            direct *= sunLight * diffuseColor;
+
+            // the ambient: the environment round the normal (the game reads
+            // its cube at mip 7.5, here the two levels around it) and the
+            // sky tint from above
+            vec3 environment = textureLod(uGameEnvironment, vec3(n.x, n.y, -n.z), 0.5).rgb;
+            float up = clamp(n.y * 0.5 + 0.5, 0.0, 1.0);
+            vec3 indirect = mix(base, scatter, soft * 0.5) *
+                            (environment + SKY_COLOR * up) * occlusion;
+
+            vec3 color = (direct / PI + indirect) * (1.0 - metal) +
+                         gameSpecular(n, v, l, ndlS, f0, a2) * sunLight;
+
+            // the fill: colourless, from the opposite side
+            float ndl2 = dot(n, -l);
+            color += gameDiffuse(ndl2, soft, occlusion, tintA) * diffuseColor *
+                     (fill * (1.0 - metal) / PI);
+            color += gameSpecular(n, v, -l, clamp(ndl2, 0.0, 1.0), f0, a2) * (fill * 0.5);
+
+            // the headlight, from the camera: no light from behind, and the
+            // occlusion on its specular only
+            float lamp = HEADLIGHT /
+                ((1.0 + HEADLIGHT_ATTENUATION * length(uCameraPosition - vPosition)) * EXPOSURE);
+            float ndl3 = dot(n, v);
+            color += gameDiffuse(ndl3, soft, 1.0, tintA) * diffuseColor *
+                     (lamp * (1.0 - metal) / PI);
+            color += gameSpecular(n, v, v, clamp(ndl3, 0.0, 1.0), f0, a2) * (lamp * occlusion);
+
+            // glow: what is not soft carries emission in the same channel
+            color += scatter * (1.0 - clamp(soft * 1e5, 0.0, 1.0));
+            return max(color, vec3(0.0));
+        }
+
         void main()
         {
-            vec3 normal = normalize(vNormal);
+            vec3 geometryNormal = normalize(vNormal);
+            vec3 normal = geometryNormal;
             if (uHasNormal)
             {
                 normal = mappedNormal(normal);
@@ -221,12 +414,9 @@ public sealed partial class ModelViewport
                         texture(uMuscleMaskTexture, selectUv(uMaskUvSet)),
                         uMuscularity);
                 }
-                mask *= uColorChannels;
-                albedo.rgb = colorize(albedo.rgb, uColor1.rgb, mask.r);
-                albedo.rgb = colorize(albedo.rgb, uColor2.rgb, mask.g);
-                albedo.rgb = colorize(albedo.rgb, uColor3.rgb, mask.b);
-                albedo.rgb = colorize(albedo.rgb, uColor4.rgb, mask.a);
+                albedo.rgb = colorize(albedo.rgb, mask * uColorChannels);
             }
+            vec3 colorized = albedo.rgb;
             // PSO2's ObjectCustomPS constant u_SkinWet is the signed
             // character skinGloss value normalized by 127. The captured skin
             // shader darkens only positive wetness, by at most 20 percent.
@@ -253,6 +443,15 @@ public sealed partial class ModelViewport
                     texture(uMuscleMultiTexture, selectUv(uMultiUvSet)),
                     uMuscularity);
             }
+            float outputAlpha = uBlendMode >= 2 ? albedo.a : 1.0;
+            if (uDemoLighting && uGameMaterial)
+            {
+                FragColor = vec4(gameShade(colorized, multi, normal, geometryNormal), outputAlpha);
+                return;
+            }
+
+            // Below: the plain viewport lighting, and the floor guide's in
+            // demo lighting.
             float ambientOcclusion = uHasMulti ? multi.b : 1.0;
             // Skin's _s texture is PSO2's SpecMaskTex. The captured skin
             // pixel shader feeds its green channel to the wet/dry transform
@@ -277,7 +476,7 @@ public sealed partial class ModelViewport
             if (uDemoLighting)
             {
                 // Use a heavily blurred level of the procedural studio
-                // environment for the broad indirect term.
+                // environment for the broad indirect term (the floor guide).
                 vec3 environmentDirection = vec3(normal.x, normal.y, -normal.z);
                 vec3 indirect = textureLod(
                     uDemoEnvironment, environmentDirection, 7.5).rgb * 0.5;
@@ -306,7 +505,6 @@ public sealed partial class ModelViewport
             // Textures are sampled through SRGB8 (linear values) and the
             // palette arrives linear, but the swapchain is not an sRGB
             // target - encode on the way out or every midtone reads dark.
-            float outputAlpha = uBlendMode >= 2 ? albedo.a : 1.0;
             FragColor = vec4(uDemoLighting ? max(outColor, vec3(0.0))
                 : pow(clamp(outColor, 0.0, 1.0), vec3(1.0 / 2.2)), outputAlpha);
         }
@@ -325,10 +523,47 @@ public sealed partial class ModelViewport
         #version 300 es
         precision highp float;
         uniform sampler2D uScene;
+        // what the background was cleared to; alpha 0 marks it
+        uniform vec3 uBackground;
         in vec2 vUv;
         out vec4 FragColor;
+        // The creator's glare (capture frame 16602): the frame blends 5%
+        // towards a blur of itself, a Gaussian of 0.178 of its height, at
+        // 0.72 of the brightness. The blur is read from the frame's mips:
+        // 9 x 9 taps half a sigma apart, each from the mip whose texels are
+        // that size. The viewport's background is not the creator's: where
+        // the blur takes it in, it takes the creator's grey backdrop (1.13
+        // before tone mapping) instead - a white one lifted every dark
+        // surface grey - and the background itself keeps its colour.
+        const float GLARE_RATE = 0.05;
+        const float GLARE_GAIN = 0.72;
+        const float GLARE_SIGMA = 0.178;
+        const float CREATOR_BACKDROP = 1.13;
+        vec3 glare() {
+            vec2 size = vec2(textureSize(uScene, 0));
+            float sigma = GLARE_SIGMA * size.y;
+            float lod = log2(max(sigma * 0.5, 1.0));
+            vec2 step = vec2(sigma * 0.5) / size;
+            vec4 sum = vec4(0.0);
+            float total = 0.0;
+            for (int j = -4; j <= 4; j++) {
+                for (int i = -4; i <= 4; i++) {
+                    float weight = exp(-0.125 * float(i * i + j * j));
+                    sum += textureLod(uScene, vUv + vec2(float(i), float(j)) * step, lod) * weight;
+                    total += weight;
+                }
+            }
+            sum /= total;
+            return sum.rgb + (1.0 - clamp(sum.a, 0.0, 1.0)) * (vec3(CREATOR_BACKDROP) - uBackground);
+        }
         void main() {
-            vec3 x = max(texture(uScene, vUv).rgb, vec3(0.0)) * 0.84;
+            vec4 center = texelFetch(uScene, ivec2(gl_FragCoord.xy), 0);
+            vec3 scene = center.rgb;
+            if (center.a > 0.0) {
+                vec3 glared = scene * (1.0 - GLARE_RATE) + glare() * (GLARE_RATE * GLARE_GAIN);
+                scene = mix(scene, glared, min(center.a, 1.0));
+            }
+            vec3 x = max(scene, vec3(0.0)) * 0.84;
             vec3 mapped = clamp(x * (3.0 * x + 0.03) / (x * (3.0 * x + 1.0) + 0.14), 0.0, 1.0);
             FragColor = vec4(pow(mapped, vec3(1.0 / 2.2)), 1.0);
         }
