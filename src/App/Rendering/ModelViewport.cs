@@ -15,7 +15,7 @@ namespace Pso2ShapeStudio.App.Rendering;
 
 public sealed partial class ModelViewport : OpenGlControlBase
 {
-    private const int MaximumBones = 256;
+    private const int PaletteCapacity = SkinningPalette.Capacity;
 
     private readonly object _sceneLock = new();
     private readonly List<GpuMesh> _gpuMeshes = [];
@@ -30,14 +30,15 @@ public sealed partial class ModelViewport : OpenGlControlBase
     private float _muscularity;
     private float _groundLift;
     private float _skinGloss;
-    private Matrix4x4[] _pendingSkinMatrices = IdentityBones();
+    private Matrix4x4[] _pendingSkinMatrices = [];
     private bool _sceneDirty = true;
     private bool _bonesDirty = true;
     private int _hiddenMeshPartMask;
 
     private GL? _gl;
     private uint _program;
-    private uint _boneBuffer;
+    // The active uniform block also needs a valid binding for floor-only scenes.
+    private uint _identityBoneBuffer;
     private bool _demoLighting;
     private int _demoLightingLocation;
     private int _skinMaterialLocation;
@@ -192,17 +193,8 @@ public sealed partial class ModelViewport : OpenGlControlBase
 
     public void SetSkinMatrices(IReadOnlyList<Matrix4x4> matrices)
     {
-        if (matrices.Count > MaximumBones)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(matrices), matrices.Count, $"At most {MaximumBones} bones are supported.");
-        }
-
-        var buffer = IdentityBones();
-        for (var index = 0; index < matrices.Count; index++)
-        {
-            buffer[index] = matrices[index];
-        }
+        ArgumentNullException.ThrowIfNull(matrices);
+        var buffer = matrices.ToArray();
 
         lock (_sceneLock)
         {
@@ -264,14 +256,24 @@ public sealed partial class ModelViewport : OpenGlControlBase
 
             var block = _gl.GetUniformBlockIndex(_program, "Bones");
             _gl.UniformBlockBinding(_program, block, 0);
-            _boneBuffer = _gl.GenBuffer();
-            _gl.BindBuffer(BufferTargetARB.UniformBuffer, _boneBuffer);
-            _gl.BufferData(
-                BufferTargetARB.UniformBuffer,
-                (nuint)(MaximumBones * Marshal.SizeOf<Matrix4x4>()),
-                null,
-                BufferUsageARB.DynamicDraw);
-            _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, _boneBuffer);
+            _gl.GetInteger(GLEnum.MaxUniformBlockSize, out int maximumBlockSize);
+            if (maximumBlockSize < PaletteCapacity * Marshal.SizeOf<Matrix4x4>())
+            {
+                throw new NotSupportedException($"Skinning requires a 16384-byte uniform block; GPU supports {maximumBlockSize} bytes.");
+            }
+            _identityBoneBuffer = _gl.GenBuffer();
+            _gl.BindBuffer(BufferTargetARB.UniformBuffer, _identityBoneBuffer);
+            var identityBones = new SkinningPalette([]).Matrices;
+            fixed (Matrix4x4* pointer = identityBones)
+            {
+                _gl.BufferData(BufferTargetARB.UniformBuffer,
+                    (nuint)(PaletteCapacity * Marshal.SizeOf<Matrix4x4>()), pointer, BufferUsageARB.StaticDraw);
+            }
+            lock (_sceneLock)
+            {
+                _sceneDirty = true;
+                _bonesDirty = true;
+            }
             _demoEnvironment = CreateDemoEnvironmentCube(_gl);
             _gameEnvironment = CreateCreatorEnvironmentCube(_gl);
             CreateFloorGuide(_gl);
@@ -295,11 +297,8 @@ public sealed partial class ModelViewport : OpenGlControlBase
         if (_gl is not null)
         {
             DeleteMeshes(_gl);
-            if (_boneBuffer != 0)
-            {
-                _gl.DeleteBuffer(_boneBuffer);
-            }
-
+            if (_identityBoneBuffer != 0) _gl.DeleteBuffer(_identityBoneBuffer);
+            _identityBoneBuffer = 0;
             DeleteFloorGuide(_gl);
             DeleteDemoTargets(_gl);
             if (_demoEnvironment != 0) _gl.DeleteTexture(_demoEnvironment);
@@ -378,7 +377,7 @@ public sealed partial class ModelViewport : OpenGlControlBase
             _gl.BindTexture(TextureTarget.TextureCubeMap, _demoEnvironment);
             _gl.ActiveTexture(TextureUnit.Texture9);
             _gl.BindTexture(TextureTarget.TextureCubeMap, _gameEnvironment);
-            _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, _boneBuffer);
+            _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, _identityBoneBuffer);
 
             // The translucent surface writes depth before the models. From a
             // normal above-floor view, geometry above Y=0 stays visible while
@@ -495,6 +494,7 @@ public sealed partial class ModelViewport : OpenGlControlBase
                 _gl.BindTexture(TextureTarget.Texture2D, mesh.MuscleNormalTexture);
                 _gl.ActiveTexture(TextureUnit.Texture8);
                 _gl.BindTexture(TextureTarget.Texture2D, mesh.MuscleMultiTexture);
+                _gl.BindBufferBase(BufferTargetARB.UniformBuffer, 0, mesh.BoneBuffer);
                 _gl.BindVertexArray(mesh.VertexArray);
                 _gl.DrawElements(
                     PrimitiveType.Triangles,
@@ -794,6 +794,7 @@ public sealed partial class ModelViewport : OpenGlControlBase
                 skinTextureT2 = _pendingSkinTextureT2;
                 characterColors = _pendingCharacterColors;
                 _sceneDirty = false;
+                _bonesDirty = true;
             }
         }
 
@@ -898,7 +899,6 @@ public sealed partial class ModelViewport : OpenGlControlBase
             if (_bonesDirty)
             {
                 matrices = _pendingSkinMatrices;
-                _bonesDirty = false;
             }
         }
 
@@ -907,14 +907,23 @@ public sealed partial class ModelViewport : OpenGlControlBase
             return;
         }
 
-        api.BindBuffer(BufferTargetARB.UniformBuffer, _boneBuffer);
-        fixed (Matrix4x4* pointer = matrices)
+        foreach (var mesh in _gpuMeshes)
         {
-            api.BufferSubData(
-                BufferTargetARB.UniformBuffer,
-                0,
-                (nuint)(matrices.Length * Marshal.SizeOf<Matrix4x4>()),
-                pointer);
+            mesh.Skinning.Update(matrices);
+            api.BindBuffer(BufferTargetARB.UniformBuffer, mesh.BoneBuffer);
+            fixed (Matrix4x4* pointer = mesh.Skinning.Matrices)
+            {
+                api.BufferSubData(
+                    BufferTargetARB.UniformBuffer,
+                    0,
+                    (nuint)(PaletteCapacity * Marshal.SizeOf<Matrix4x4>()),
+                    pointer);
+            }
+        }
+        lock (_sceneLock)
+        {
+            // A slider may have supplied a newer snapshot during this upload.
+            if (ReferenceEquals(matrices, _pendingSkinMatrices)) _bonesDirty = false;
         }
     }
 
@@ -926,6 +935,7 @@ public sealed partial class ModelViewport : OpenGlControlBase
         RenderTextureSet muscleTextures,
         CharacterColorPalette colors)
     {
+        var skinning = new SkinningPalette(mesh.Palette);
         var vertices = new GpuVertex[mesh.VertexCount];
         var uv2 = mesh.GetUvChannel(1);
         var uv3 = mesh.GetUvChannel(2);
@@ -939,98 +949,118 @@ public sealed partial class ModelViewport : OpenGlControlBase
                 uv2[index],
                 uv3[index],
                 mesh.Weights[index],
-                new Byte4(
-                    ResolveBone(mesh.Palette, paletteIndex.X),
-                    ResolveBone(mesh.Palette, paletteIndex.Y),
-                    ResolveBone(mesh.Palette, paletteIndex.Z),
-                    ResolveBone(mesh.Palette, paletteIndex.W)));
+                skinning.ValidateIndices(paletteIndex));
         }
 
-        var vao = api.GenVertexArray();
-        var vertexBuffer = api.GenBuffer();
-        var indexBuffer = api.GenBuffer();
-        api.BindVertexArray(vao);
-
-        api.BindBuffer(BufferTargetARB.ArrayBuffer, vertexBuffer);
-        fixed (GpuVertex* pointer = vertices)
+        uint boneBuffer = 0, vao = 0, vertexBuffer = 0, indexBuffer = 0;
+        var completed = false;
+        try
         {
-            api.BufferData(
-                BufferTargetARB.ArrayBuffer,
-                (nuint)(vertices.Length * Marshal.SizeOf<GpuVertex>()),
-                pointer,
-                BufferUsageARB.StaticDraw);
-        }
+            boneBuffer = api.GenBuffer();
+            api.BindBuffer(BufferTargetARB.UniformBuffer, boneBuffer);
+            api.BufferData(BufferTargetARB.UniformBuffer,
+                (nuint)(PaletteCapacity * Marshal.SizeOf<Matrix4x4>()), null, BufferUsageARB.DynamicDraw);
+            vao = api.GenVertexArray();
+            vertexBuffer = api.GenBuffer();
+            indexBuffer = api.GenBuffer();
+            api.BindVertexArray(vao);
 
-        // The triangle list is int[] but every value is a non-negative vertex
-        // index, so the bytes are uploaded directly as GL_UNSIGNED_INT.
-        api.BindBuffer(BufferTargetARB.ElementArrayBuffer, indexBuffer);
-        fixed (int* pointer = mesh.Triangles)
+            api.BindBuffer(BufferTargetARB.ArrayBuffer, vertexBuffer);
+            fixed (GpuVertex* pointer = vertices)
+            {
+                api.BufferData(
+                    BufferTargetARB.ArrayBuffer,
+                    (nuint)(vertices.Length * Marshal.SizeOf<GpuVertex>()),
+                    pointer,
+                    BufferUsageARB.StaticDraw);
+            }
+
+            // The triangle list is int[] but every value is a non-negative vertex
+            // index, so the bytes are uploaded directly as GL_UNSIGNED_INT.
+            api.BindBuffer(BufferTargetARB.ElementArrayBuffer, indexBuffer);
+            fixed (int* pointer = mesh.Triangles)
+            {
+                api.BufferData(
+                    BufferTargetARB.ElementArrayBuffer,
+                    (nuint)(mesh.Triangles.Length * sizeof(uint)),
+                    pointer,
+                    BufferUsageARB.StaticDraw);
+            }
+
+            ConfigureVertexAttributes(api);
+            api.BindVertexArray(0);
+
+            var texture = textures.Diffuse is null
+                ? 0
+                : GetOrUploadTexture(api, textures.Diffuse, srgb: true);
+            var maskTexture = textures.Mask is null
+                ? 0
+                : GetOrUploadTexture(api, textures.Mask, srgb: false);
+            var normalTexture = textures.Normal is null
+                ? 0
+                : GetOrUploadTexture(api, textures.Normal, srgb: false);
+            var multiTexture = textures.Multi is null
+                ? 0
+                : GetOrUploadTexture(api, textures.Multi, srgb: false);
+            var muscleTexture = muscleTextures.Diffuse is null
+                ? 0
+                : GetOrUploadTexture(api, muscleTextures.Diffuse, srgb: true);
+            var muscleMaskTexture = muscleTextures.Mask is null
+                ? 0
+                : GetOrUploadTexture(api, muscleTextures.Mask, srgb: false);
+            var muscleNormalTexture = muscleTextures.Normal is null
+                ? 0
+                : GetOrUploadTexture(api, muscleTextures.Normal, srgb: false);
+            var muscleMultiTexture = muscleTextures.Multi is null
+                ? 0
+                : GetOrUploadTexture(api, muscleTextures.Multi, srgb: false);
+            var mapping = material.ColorMapping;
+            var result = new GpuMesh(
+                boneBuffer,
+                skinning,
+                vao,
+                vertexBuffer,
+                indexBuffer,
+                (uint)mesh.Triangles.Length,
+                texture,
+                maskTexture,
+                normalTexture,
+                multiTexture,
+                muscleTexture,
+                muscleMaskTexture,
+                muscleNormalTexture,
+                muscleMultiTexture,
+                material.BaseColor,
+                colors[mapping.Red],
+                colors[mapping.Green],
+                colors[mapping.Blue],
+                colors[mapping.Alpha],
+                new Vector4(
+                    mapping.Red == Pso2ColorChannel.Unused ? 0f : 1f,
+                    mapping.Green == Pso2ColorChannel.Unused ? 0f : 1f,
+                    mapping.Blue == Pso2ColorChannel.Unused ? 0f : 1f,
+                    mapping.Alpha == Pso2ColorChannel.Unused ? 0f : 1f),
+                material.UsesSkinTexture,
+                material.UsesSkinTexture,
+                material.AlphaCutoff / 255f,
+                material.TextureUvSets,
+                material.BlendMode,
+                MeshCenter(mesh),
+                mesh.Part);
+            completed = true;
+            return result;
+        }
+        finally
         {
-            api.BufferData(
-                BufferTargetARB.ElementArrayBuffer,
-                (nuint)(mesh.Triangles.Length * sizeof(uint)),
-                pointer,
-                BufferUsageARB.StaticDraw);
+            if (!completed)
+            {
+                api.BindVertexArray(0);
+                if (boneBuffer != 0) api.DeleteBuffer(boneBuffer);
+                if (vao != 0) api.DeleteVertexArray(vao);
+                if (vertexBuffer != 0) api.DeleteBuffer(vertexBuffer);
+                if (indexBuffer != 0) api.DeleteBuffer(indexBuffer);
+            }
         }
-
-        ConfigureVertexAttributes(api);
-        api.BindVertexArray(0);
-
-        var texture = textures.Diffuse is null
-            ? 0
-            : GetOrUploadTexture(api, textures.Diffuse, srgb: true);
-        var maskTexture = textures.Mask is null
-            ? 0
-            : GetOrUploadTexture(api, textures.Mask, srgb: false);
-        var normalTexture = textures.Normal is null
-            ? 0
-            : GetOrUploadTexture(api, textures.Normal, srgb: false);
-        var multiTexture = textures.Multi is null
-            ? 0
-            : GetOrUploadTexture(api, textures.Multi, srgb: false);
-        var muscleTexture = muscleTextures.Diffuse is null
-            ? 0
-            : GetOrUploadTexture(api, muscleTextures.Diffuse, srgb: true);
-        var muscleMaskTexture = muscleTextures.Mask is null
-            ? 0
-            : GetOrUploadTexture(api, muscleTextures.Mask, srgb: false);
-        var muscleNormalTexture = muscleTextures.Normal is null
-            ? 0
-            : GetOrUploadTexture(api, muscleTextures.Normal, srgb: false);
-        var muscleMultiTexture = muscleTextures.Multi is null
-            ? 0
-            : GetOrUploadTexture(api, muscleTextures.Multi, srgb: false);
-        var mapping = material.ColorMapping;
-        return new GpuMesh(
-            vao,
-            vertexBuffer,
-            indexBuffer,
-            (uint)mesh.Triangles.Length,
-            texture,
-            maskTexture,
-            normalTexture,
-            multiTexture,
-            muscleTexture,
-            muscleMaskTexture,
-            muscleNormalTexture,
-            muscleMultiTexture,
-            material.BaseColor,
-            colors[mapping.Red],
-            colors[mapping.Green],
-            colors[mapping.Blue],
-            colors[mapping.Alpha],
-            new Vector4(
-                mapping.Red == Pso2ColorChannel.Unused ? 0f : 1f,
-                mapping.Green == Pso2ColorChannel.Unused ? 0f : 1f,
-                mapping.Blue == Pso2ColorChannel.Unused ? 0f : 1f,
-                mapping.Alpha == Pso2ColorChannel.Unused ? 0f : 1f),
-            material.UsesSkinTexture,
-            material.UsesSkinTexture,
-            material.AlphaCutoff / 255f,
-            material.TextureUvSets,
-            material.BlendMode,
-            MeshCenter(mesh),
-            mesh.Part);
     }
 
     private static bool IsMeshPartVisible(Pso2MeshPart part, int hiddenMeshPartMask)
@@ -1120,22 +1150,6 @@ public sealed partial class ModelViewport : OpenGlControlBase
         return handle;
     }
 
-    private static byte ResolveBone(IReadOnlyList<int> palette, byte paletteIndex)
-    {
-        if (palette.Count == 0)
-        {
-            return 0;
-        }
-
-        if (paletteIndex >= palette.Count)
-        {
-            throw new InvalidDataException(
-                $"Palette index {paletteIndex} exceeds palette length {palette.Count}.");
-        }
-
-        return checked((byte)palette[paletteIndex]);
-    }
-
     private void DeleteMeshes(GL api)
     {
         DeleteMeshBuffers(api);
@@ -1150,6 +1164,7 @@ public sealed partial class ModelViewport : OpenGlControlBase
     {
         foreach (var mesh in _gpuMeshes)
         {
+            api.DeleteBuffer(mesh.BoneBuffer);
             api.DeleteVertexArray(mesh.VertexArray);
             api.DeleteBuffer(mesh.VertexBuffer);
             api.DeleteBuffer(mesh.IndexBuffer);
@@ -1199,11 +1214,6 @@ public sealed partial class ModelViewport : OpenGlControlBase
         }
     }
 
-    private static Matrix4x4[] IdentityBones()
-    {
-        return Enumerable.Repeat(Matrix4x4.Identity, MaximumBones).ToArray();
-    }
-
     private void ReportRendererStatus(string message)
     {
         Dispatcher.UIThread.Post(
@@ -1222,6 +1232,8 @@ public sealed partial class ModelViewport : OpenGlControlBase
         Byte4 BoneIndices);
 
     private readonly record struct GpuMesh(
+        uint BoneBuffer,
+        SkinningPalette Skinning,
         uint VertexArray,
         uint VertexBuffer,
         uint IndexBuffer,

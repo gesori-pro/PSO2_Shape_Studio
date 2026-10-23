@@ -59,6 +59,7 @@ public sealed partial class ModelViewport
 
         layout(std140) uniform Bones
         {
+            // Mesh-local Byte4 slots; the CPU gathers global skeleton matrices.
             mat4 uBones[256];
         };
 
