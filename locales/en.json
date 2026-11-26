@@ -143,7 +143,21 @@
         "BoneNotFound": "The loaded skeleton does not contain this bone: {0}",
         "DuplicateBone": "Bone '{0}' is already assigned to another enabled group.",
         "OptionsSaved": "Options saved.",
-        "DemoLighting": "Demo lighting (preview)"
+        "DemoLighting": "Demo lighting (preview)",
+        "ClothPhysics": "Cloth physics (at rest)",
+        "ClothPhysicsTip": "Let the outfit's FLTD cloth bones (drs) settle under gravity, as the character creator shows them standing still.",
+        "ClothParticlesCount": "{0:N0} cloth particles",
+        "ClothUnavailable": "Cloth physics unavailable: {0}",
+        "ClothIdlePose": "Settle in the creator idle",
+        "ClothIdlePoseTip": "Let the cloth hang with the body in the character creator's standing idle (needs the game data folder), then show it on this pose.",
+        "ClothIdleMissing": "Creator idle motion not found; the cloth settles in the shown pose.",
+        "TabShape": "Shape",
+        "TabModels": "Models",
+        "TabView": "View",
+        "LanguageLabel": "Language",
+        "BackgroundLabel": "Background",
+        "DisplaySection": "Display",
+        "PhysicsSection": "Physics"
     },
     "shapeNames": {
         "bodyroot": "Sole Height (body_root Y)",

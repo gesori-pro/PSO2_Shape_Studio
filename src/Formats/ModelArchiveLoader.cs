@@ -3,9 +3,9 @@ namespace Pso2ShapeStudio.Formats;
 using Pso2ShapeStudio.Character;
 
 /// <summary>
-/// Everything a model ICE yields in one pass. The shape-adjust entry stays
-/// raw bytes: parsing it is the rigging module's business, and keeping it
-/// out of here is what keeps Formats free of a dependency cycle.
+/// Everything a model ICE yields in one pass. The shape-adjust and cloth
+/// entries stay raw bytes: parsing them is the rigging module's business,
+/// and keeping it out of here is what keeps Formats free of a dependency cycle.
 /// </summary>
 public sealed record GameModelArchive(
     string SourcePath,
@@ -13,7 +13,8 @@ public sealed record GameModelArchive(
     AqnSkeleton? Skeleton,
     byte[]? ShapeAdjustData,
     int EntryCount,
-    int DdsCount);
+    int DdsCount,
+    byte[]? ClothData = null);
 
 public static class ModelArchiveLoader
 {
@@ -59,6 +60,13 @@ public static class ModelArchiveLoader
 
         var shapeEntry = entries.FirstOrDefault(entry =>
             entry.Name.EndsWith("_sa.aqm", StringComparison.OrdinalIgnoreCase));
+        var clothEntries = entries.Where(entry => Extension(entry.Name) == ".fltd").ToArray();
+        var clothEntry = clothEntries.FirstOrDefault(entry =>
+                             string.Equals(
+                                 Path.GetFileNameWithoutExtension(entry.Name),
+                                 primaryStem,
+                                 StringComparison.OrdinalIgnoreCase))
+                         ?? clothEntries.FirstOrDefault();
 
         return new GameModelArchive(
             archive.SourcePath,
@@ -66,7 +74,8 @@ public static class ModelArchiveLoader
             skeleton,
             shapeEntry?.Data,
             entries.Count,
-            textures.Count);
+            textures.Count,
+            clothEntry?.Data);
     }
 
     private static string Extension(string name) => Path.GetExtension(name).ToLowerInvariant();

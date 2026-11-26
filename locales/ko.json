@@ -143,7 +143,21 @@
         "BoneNotFound": "현재 스켈레톤에 없는 본입니다: {0}",
         "DuplicateBone": "본 '{0}'은(는) 이미 다른 활성 그룹에 지정되어 있습니다.",
         "OptionsSaved": "옵션을 저장했습니다.",
-        "DemoLighting": "데모 조명 미리보기"
+        "DemoLighting": "데모 조명 미리보기",
+        "ClothPhysics": "천 물리 (정지 상태)",
+        "ClothPhysicsTip": "의상의 FLTD 천 본(drs)을 중력으로 가라앉힌 모양을 보여 줍니다. 캐릭터 크리에이터에서 가만히 서 있을 때의 모습입니다.",
+        "ClothParticlesCount": "천 입자 {0:N0}개",
+        "ClothUnavailable": "천 물리를 쓸 수 없습니다: {0}",
+        "ClothIdlePose": "크리에이터 대기 자세로 계산",
+        "ClothIdlePoseTip": "캐릭터 크리에이터에서 서 있는 대기 자세로 천을 가라앉힌 뒤 지금 자세에 옮겨 보여 줍니다. 게임 데이터 폴더가 지정돼 있어야 합니다.",
+        "ClothIdleMissing": "크리에이터 대기 모션을 찾지 못해 지금 자세로 천을 계산했습니다.",
+        "TabShape": "체형",
+        "TabModels": "모델",
+        "TabView": "보기",
+        "LanguageLabel": "언어",
+        "BackgroundLabel": "배경",
+        "DisplaySection": "화면",
+        "PhysicsSection": "물리"
     },
     "shapeNames": {
         "bodyroot": "발바닥 높이 (body_root Y)",

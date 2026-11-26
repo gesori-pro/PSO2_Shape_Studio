@@ -143,7 +143,21 @@
         "BoneNotFound": "加载的骨架不包含此骨骼：{0}",
         "DuplicateBone": "骨骼「{0}」已分配给另一个启用中的分组。",
         "OptionsSaved": "选项已保存。",
-        "DemoLighting": "演示光照预览"
+        "DemoLighting": "演示光照预览",
+        "ClothPhysics": "布料物理（静止状态）",
+        "ClothPhysicsTip": "让服装的 FLTD 布料骨骼（drs）在重力下稳定，显示角色创建中静止站立时的样子。",
+        "ClothParticlesCount": "{0:N0} 个布料粒子",
+        "ClothUnavailable": "无法使用布料物理：{0}",
+        "ClothIdlePose": "按角色创建待机姿势计算",
+        "ClothIdlePoseTip": "先在角色创建的站立待机姿势下让布料稳定，再移到当前姿势显示。需要指定游戏数据文件夹。",
+        "ClothIdleMissing": "找不到角色创建待机动作，布料按当前姿势计算。",
+        "TabShape": "体型",
+        "TabModels": "模型",
+        "TabView": "显示",
+        "LanguageLabel": "语言",
+        "BackgroundLabel": "背景",
+        "DisplaySection": "画面",
+        "PhysicsSection": "物理"
     },
     "shapeNames": {
         "bodyroot": "脚底高度 (body_root Y)",

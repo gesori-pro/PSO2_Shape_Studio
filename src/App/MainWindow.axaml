@@ -12,296 +12,330 @@
         Foreground="{DynamicResource SidebarTextBrush}">
   <Grid x:Name="RootLayout" RowDefinitions="*,Auto">
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="420" MinWidth="320" MaxWidth="760" />
-      <ColumnDefinition Width="6" />
+      <ColumnDefinition Width="420" MinWidth="340" MaxWidth="760" />
+      <ColumnDefinition Width="1" />
       <ColumnDefinition Width="*" MinWidth="360" />
     </Grid.ColumnDefinitions>
-    <Border Grid.Row="0" Grid.Column="0"
-            Background="{DynamicResource SidebarBackgroundBrush}"
-            Padding="16">
-      <Grid RowDefinitions="Auto,Auto,90,*,Auto,Auto">
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <StackPanel Spacing="4">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBlock Text="PSO2 Shape Studio" FontSize="21" FontWeight="SemiBold" />
-              <TextBlock x:Name="VersionText" Text="v" FontSize="12"
-                         VerticalAlignment="Center"
-                         Foreground="{DynamicResource SecondaryTextBrush}" />
-            </StackPanel>
-            <TextBlock x:Name="SubtitleText" Text="Edit PSO2 AQP/AQN models and character shapes"
-                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" />
+
+    <Border Grid.Row="0" Grid.Column="0" Classes="sidebar">
+      <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- Title and the one action every session starts with -->
+        <Grid Margin="18,16,18,12" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="PSO2 Shape Studio" Classes="title" />
+            <Border Classes="badge" VerticalAlignment="Center">
+              <TextBlock x:Name="VersionText" Text="v" Classes="badge" />
+            </Border>
           </StackPanel>
-          <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Top">
-            <ComboBox x:Name="LanguageComboBox" Width="154" SelectedIndex="0"
-                      ToolTip.Tip="Interface language" />
-            <ComboBox x:Name="BackgroundComboBox" Width="154" SelectedIndex="0"
-                      ToolTip.Tip="Viewport background">
-              <ComboBoxItem Content="Dark" Tag="0E1114" />
-              <ComboBoxItem Content="Graphite" Tag="2A2E36" />
-              <ComboBoxItem Content="Gray" Tag="6B7280" />
-              <ComboBoxItem Content="Silver" Tag="C9CED6" />
-              <ComboBoxItem Content="White" Tag="F2F4F7" />
-              <ComboBoxItem Content="Navy" Tag="17233D" />
-              <ComboBoxItem Content="Forest" Tag="1D3327" />
-              <ComboBoxItem Content="Magenta" Tag="8A1D6B" />
-            </ComboBox>
-            <CheckBox x:Name="FloorGuideCheckBox" Content="Floor guide" IsChecked="True"
-                      ToolTip.Tip="Show the world Y=0 floor guide" />
-            <CheckBox x:Name="DemoLightingCheckBox" Content="Demo lighting (preview)" IsChecked="False" />
-            <Button x:Name="OptionsButton" Content="Options…" />
-          </StackPanel>
+          <TextBlock Grid.Row="1" x:Name="SubtitleText" Classes="subtitle" Margin="0,3,0,0"
+                     Text="Edit PSO2 AQP/AQN models and character shapes" />
+          <Button Grid.Column="1" Grid.RowSpan="2" x:Name="OptionsButton" Content="Options…"
+                  Classes="subtle" VerticalAlignment="Center" />
         </Grid>
 
-        <Button Grid.Row="1" x:Name="OpenFilesButton" Margin="0,14,0,10"
-                HorizontalAlignment="Stretch" Content="Open model files…" />
+        <Button Grid.Row="1" x:Name="OpenFilesButton" Classes="accent primary"
+                Margin="18,0,18,12" HorizontalAlignment="Stretch"
+                Content="Open model files…" />
 
-        <Border Grid.Row="2" Background="{DynamicResource PanelSurfaceBrush}" CornerRadius="6" Padding="8">
-          <ScrollViewer>
-            <ItemsControl ItemsSource="{Binding Models}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="local:ModelEntry">
-                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" Margin="2,2">
-                    <CheckBox IsChecked="{Binding Visible}" Content="{Binding DisplayName}"
-                              ToolTip.Tip="{Binding Model.SourcePath}"
-                              VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="×" Width="28" Height="26" Padding="0"
-                            FontSize="16" ToolTip.Tip="{Binding RemoveLabel}"
-                            Click="RemoveModel" />
-                  </Grid>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </ScrollViewer>
-        </Border>
+        <TabControl Grid.Row="2" x:Name="SidebarTabs" Classes="sidebar">
 
-        <ScrollViewer Grid.Row="3" x:Name="SidebarContentScrollViewer"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      AllowAutoHide="False">
-          <StackPanel>
-            <Expander x:Name="GameDataExpander" Header="Game Data / Model Search" IsExpanded="True"
-                      Margin="0,5,0,4" HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch">
-          <Grid Margin="0,6,0,2" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,120,Auto" RowSpacing="5">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-              <Button x:Name="SelectDataFolderButton" Content="Select game folder…" />
-              <Button Grid.Column="1" x:Name="BuildCatalogButton" Content="Refresh cache" IsEnabled="False" />
-            </Grid>
-            <TextBlock Grid.Row="1" x:Name="DataFolderText" Text="Data folder not selected"
-                       TextTrimming="CharacterEllipsis" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
-            <TextBlock Grid.Row="2" x:Name="DataFolderValidationText"
-                       Text="Select the game installation folder, pso2_bin, or data folder."
-                       TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" />
-            <StackPanel Grid.Row="3" Spacing="4" Margin="0,2">
-              <TextBlock x:Name="SkinTexturesHeaderText" Text="Skin Textures"
-                         FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SectionTextBrush}" />
-              <Grid ColumnDefinitions="56,*" ColumnSpacing="6">
-                <TextBlock x:Name="SkinType1Label" Text="Type 1" VerticalAlignment="Center"
-                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" />
-                <ComboBox Grid.Column="1" x:Name="SkinType1ComboBox"
-                          ItemsSource="{Binding SkinType1Options}" IsEnabled="False">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="local:SkinOptionViewModel">
-                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                    </DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
+          <!-- Shape: what this tool is for -->
+          <TabItem x:Name="ShapeTab" Header="Shape">
+            <Grid RowDefinitions="Auto,Auto,*" Margin="18,10,18,14">
+              <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+                <Button x:Name="LoadCharacterButton" Content="Load character file…" IsEnabled="False"
+                        HorizontalAlignment="Stretch" />
+                <Button Grid.Column="1" x:Name="LoadAqmButton" Content="Load _sa.aqm…" IsEnabled="False"
+                        HorizontalAlignment="Stretch" />
+                <Button Grid.Row="1" x:Name="ResetShapeButton" Content="Reset shape" IsEnabled="False"
+                        HorizontalAlignment="Stretch" />
+                <Button Grid.Row="1" Grid.Column="1" x:Name="SaveAqmButton" Content="Save _sa.aqm…"
+                        IsEnabled="False" Classes="accent" HorizontalAlignment="Stretch" />
               </Grid>
-              <Grid ColumnDefinitions="56,*" ColumnSpacing="6">
-                <TextBlock x:Name="SkinType2Label" Text="Type 2" VerticalAlignment="Center"
-                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" />
-                <ComboBox Grid.Column="1" x:Name="SkinType2ComboBox"
-                          ItemsSource="{Binding SkinType2Options}" IsEnabled="False">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="local:SkinOptionViewModel">
-                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                    </DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-              </Grid>
-            </StackPanel>
-            <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="6">
-              <TextBox x:Name="ModelSearchBox" PlaceholderText="Name · ID · file name · MD5" />
-              <Button Grid.Column="1" x:Name="SearchModelsButton" Content="Search" IsEnabled="False" />
-            </Grid>
-            <WrapPanel Grid.Row="5" ItemSpacing="10" LineSpacing="2">
-              <CheckBox x:Name="WearBasewearCheck" Content="Basewear" IsChecked="True"
-                        FontSize="11" MinHeight="24" Padding="4,0,0,0" />
-              <CheckBox x:Name="WearOuterwearCheck" Content="Outerwear" IsChecked="True"
-                        FontSize="11" MinHeight="24" Padding="4,0,0,0" />
-              <CheckBox x:Name="WearSetwearCheck" Content="Setwear" IsChecked="True"
-                        FontSize="11" MinHeight="24" Padding="4,0,0,0" />
-              <CheckBox x:Name="WearCostumeCheck" Content="Costume" IsChecked="True"
-                        FontSize="11" MinHeight="24" Padding="4,0,0,0" />
-            </WrapPanel>
-            <Border Grid.Row="6" Background="{DynamicResource PanelSurfaceBrush}" CornerRadius="6" Padding="4">
-              <ListBox x:Name="ModelSearchResultsList" ItemsSource="{Binding SearchResults}">
-                <ListBox.ItemTemplate>
-                  <DataTemplate x:DataType="local:ModelSearchResultViewModel">
-                    <StackPanel Margin="4,3" Spacing="1" ToolTip.Tip="{Binding ResolvedPath}">
-                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
-                      <TextBlock Text="{Binding Metadata}" Foreground="{DynamicResource MutedTextBrush}" FontSize="10"
-                                 TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                  </DataTemplate>
-                </ListBox.ItemTemplate>
-              </ListBox>
-            </Border>
-            <Button Grid.Row="7" x:Name="LoadSearchResultButton"
-                    Content="Load selected model" IsEnabled="False" />
-          </Grid>
-            </Expander>
+              <TextBlock Grid.Row="1" x:Name="ShapeSlidersHeaderText" Classes="section"
+                         Margin="2,16,0,8" Text="Shape Sliders · S / P / R" />
+              <ScrollViewer Grid.Row="2" x:Name="SidebarContentScrollViewer"
+                            VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Disabled"
+                            AllowAutoHide="False">
+                <Border Classes="card" Padding="4">
+                  <ItemsControl ItemsSource="{Binding SliderGroups}" HorizontalAlignment="Stretch">
+                  <ItemsControl.Styles>
+                    <Style Selector="ContentPresenter">
+                      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                  </ItemsControl.Styles>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:ShapeGroupViewModel">
+                      <Expander Header="{Binding Label}" Margin="0,1"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                        <StackPanel Margin="4,5,2,8" Spacing="4">
+                          <TextBlock Text="{Binding ScaleLabel}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
+                          <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="16,*,112"
+                                ColumnSpacing="6" RowSpacing="2">
+                            <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
+                                       IsVisible="{Binding SupportsScaleX}" />
+                            <Slider Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="{Binding ScaleStep}"
+                                    IsSnapToTickEnabled="True" SmallChange="{Binding ScaleStep}" LargeChange="0.1"
+                                    Value="{Binding ScaleX, Mode=TwoWay}" IsVisible="{Binding SupportsScaleX}" />
+                            <NumericUpDown Grid.Column="2" Value="{Binding ScaleX, Mode=TwoWay}"
+                                           Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}"
+                                           Increment="{Binding ScaleStep}" FormatString="{Binding ScaleFormat}"
+                                           HorizontalContentAlignment="Right" IsVisible="{Binding SupportsScaleX}" />
 
-            <Expander x:Name="OrnamentsExpander" Header="Ornaments" IsExpanded="True"
-                      IsVisible="False" Margin="0,5,0,4"
-                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-              <WrapPanel Margin="4,6,2,2" ItemSpacing="10" LineSpacing="2">
-                <CheckBox x:Name="BasewearOrnament1CheckBox" Content="Basewear Ornament 1"
-                          IsChecked="True" IsVisible="False" FontSize="11"
-                          MinHeight="24" Padding="4,0,0,0" />
-                <CheckBox x:Name="BasewearOrnament2CheckBox" Content="Basewear Ornament 2"
-                          IsChecked="True" IsVisible="False" FontSize="11"
-                          MinHeight="24" Padding="4,0,0,0" />
-                <CheckBox x:Name="OuterwearOrnamentCheckBox" Content="Outerwear Ornament"
-                          IsChecked="True" IsVisible="False" FontSize="11"
-                          MinHeight="24" Padding="4,0,0,0" />
+                            <TextBlock Grid.Row="1" Text="Y" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
+                                       IsVisible="{Binding SupportsScaleY}" />
+                            <Slider Grid.Row="1" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="{Binding ScaleStep}"
+                                    IsSnapToTickEnabled="True" SmallChange="{Binding ScaleStep}" LargeChange="0.1"
+                                    Value="{Binding ScaleY, Mode=TwoWay}" IsVisible="{Binding SupportsScaleY}" />
+                            <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding ScaleY, Mode=TwoWay}"
+                                           Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}"
+                                           Increment="{Binding ScaleStep}" FormatString="{Binding ScaleFormat}"
+                                           HorizontalContentAlignment="Right" IsVisible="{Binding SupportsScaleY}" />
+
+                            <TextBlock Grid.Row="2" Text="Z" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
+                                       IsVisible="{Binding SupportsScaleZ}" />
+                            <Slider Grid.Row="2" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="{Binding ScaleStep}"
+                                    IsSnapToTickEnabled="True" SmallChange="{Binding ScaleStep}" LargeChange="0.1"
+                                    Value="{Binding ScaleZ, Mode=TwoWay}" IsVisible="{Binding SupportsScaleZ}" />
+                            <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding ScaleZ, Mode=TwoWay}"
+                                           Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}"
+                                           Increment="{Binding ScaleStep}" FormatString="{Binding ScaleFormat}"
+                                           HorizontalContentAlignment="Right" IsVisible="{Binding SupportsScaleZ}" />
+                          </Grid>
+
+                          <TextBlock Text="{Binding PositionLabel}" Margin="0,3,0,0" FontSize="11"
+                                     Foreground="{DynamicResource SecondaryTextBrush}"
+                                     IsVisible="{Binding SupportsPosition}" />
+                          <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="16,*,112"
+                                ColumnSpacing="6" RowSpacing="2" IsVisible="{Binding SupportsPosition}">
+                            <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
+                            <Slider Grid.Column="1" Value="{Binding PositionX, Mode=TwoWay}"
+                                    Minimum="-1" Maximum="1" TickFrequency="0.001"
+                                    IsSnapToTickEnabled="True" SmallChange="0.001" LargeChange="0.01" />
+                            <NumericUpDown Grid.Column="2" Value="{Binding PositionX, Mode=TwoWay}"
+                                           Minimum="-1" Maximum="1" Increment="0.001" FormatString="F3"
+                                           HorizontalContentAlignment="Right" />
+
+                            <TextBlock Grid.Row="1" Text="Y" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
+                            <Slider Grid.Row="1" Grid.Column="1" Value="{Binding PositionY, Mode=TwoWay}"
+                                    Minimum="-1" Maximum="1" TickFrequency="0.001"
+                                    IsSnapToTickEnabled="True" SmallChange="0.001" LargeChange="0.01" />
+                            <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding PositionY, Mode=TwoWay}"
+                                           Minimum="-1" Maximum="1" Increment="0.001" FormatString="F3"
+                                           HorizontalContentAlignment="Right" />
+
+                            <TextBlock Grid.Row="2" Text="Z" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
+                            <Slider Grid.Row="2" Grid.Column="1" Value="{Binding PositionZ, Mode=TwoWay}"
+                                    Minimum="-1" Maximum="1" TickFrequency="0.001"
+                                    IsSnapToTickEnabled="True" SmallChange="0.001" LargeChange="0.01" />
+                            <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding PositionZ, Mode=TwoWay}"
+                                           Minimum="-1" Maximum="1" Increment="0.001" FormatString="F3"
+                                           HorizontalContentAlignment="Right" />
+                          </Grid>
+
+                          <TextBlock Text="{Binding RotationLabel}" Margin="0,3,0,0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"
+                                     IsVisible="{Binding ShowsRotation}" IsEnabled="{Binding SupportsRotation}" />
+                          <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="16,*,112"
+                                ColumnSpacing="6" RowSpacing="2" IsVisible="{Binding ShowsRotation}"
+                                IsEnabled="{Binding SupportsRotation}">
+                            <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
+                            <local:ZeroSnapSlider Grid.Column="1" Value="{Binding RotationX, Mode=TwoWay}"
+                                                  Minimum="-180" Maximum="180" TickFrequency="0.01"
+                                                  IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
+                                                  ZeroSnapThreshold="1" />
+                            <NumericUpDown Grid.Column="2" Value="{Binding RotationX, Mode=TwoWay}"
+                                           Minimum="-180" Maximum="180" Increment="0.01" FormatString="F2"
+                                           HorizontalContentAlignment="Right" />
+
+                            <TextBlock Grid.Row="1" Text="Y" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
+                            <local:ZeroSnapSlider Grid.Row="1" Grid.Column="1" Value="{Binding RotationY, Mode=TwoWay}"
+                                                  Minimum="-180" Maximum="180" TickFrequency="0.01"
+                                                  IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
+                                                  ZeroSnapThreshold="1" />
+                            <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding RotationY, Mode=TwoWay}"
+                                           Minimum="-180" Maximum="180" Increment="0.01" FormatString="F2"
+                                           HorizontalContentAlignment="Right" />
+
+                            <TextBlock Grid.Row="2" Text="Z" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
+                            <local:ZeroSnapSlider Grid.Row="2" Grid.Column="1" Value="{Binding RotationZ, Mode=TwoWay}"
+                                                  Minimum="-180" Maximum="180" TickFrequency="0.01"
+                                                  IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
+                                                  ZeroSnapThreshold="1" />
+                            <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding RotationZ, Mode=TwoWay}"
+                                           Minimum="-180" Maximum="180" Increment="0.01" FormatString="F2"
+                                           HorizontalContentAlignment="Right" />
+                          </Grid>
+                        </StackPanel>
+                      </Expander>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Border>
+              </ScrollViewer>
+            </Grid>
+          </TabItem>
+
+          <!-- Models: loaded files, their ornaments, and the game catalog -->
+          <TabItem x:Name="ModelsTab" Header="Models">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          AllowAutoHide="False">
+              <StackPanel Margin="18,10,18,14" Spacing="12">
+                <Border Classes="card">
+                  <ScrollViewer MaxHeight="180">
+                    <ItemsControl ItemsSource="{Binding Models}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="local:ModelEntry">
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" Margin="2,1">
+                            <!-- A TextBlock, so the underscores of file names are not
+                                 taken as access keys. -->
+                            <CheckBox IsChecked="{Binding Visible}"
+                                      ToolTip.Tip="{Binding Model.SourcePath}"
+                                      VerticalAlignment="Center">
+                              <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                            </CheckBox>
+                            <Button Grid.Column="1" Content="×" Width="28" Height="26" Padding="0"
+                                    FontSize="16" Classes="subtle" ToolTip.Tip="{Binding RemoveLabel}"
+                                    Click="RemoveModel" />
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Border>
+
+                <Expander x:Name="OrnamentsExpander" Header="Ornaments" IsExpanded="True"
+                          IsVisible="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                  <WrapPanel Margin="4,6,2,2" ItemSpacing="10" LineSpacing="2">
+                    <CheckBox x:Name="BasewearOrnament1CheckBox" Content="Basewear Ornament 1"
+                              IsChecked="True" IsVisible="False" Classes="small" />
+                    <CheckBox x:Name="BasewearOrnament2CheckBox" Content="Basewear Ornament 2"
+                              IsChecked="True" IsVisible="False" Classes="small" />
+                    <CheckBox x:Name="OuterwearOrnamentCheckBox" Content="Outerwear Ornament"
+                              IsChecked="True" IsVisible="False" Classes="small" />
+                  </WrapPanel>
+                </Expander>
+
+                <Expander x:Name="GameDataExpander" Header="Game Data / Model Search" IsExpanded="True"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+            <Grid Margin="0,6,0,2" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,160,Auto" RowSpacing="5">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                <Button x:Name="SelectDataFolderButton" Content="Select game folder…" />
+                <Button Grid.Column="1" x:Name="BuildCatalogButton" Content="Refresh cache" IsEnabled="False" />
+              </Grid>
+              <TextBlock Grid.Row="1" x:Name="DataFolderText" Text="Data folder not selected"
+                         TextTrimming="CharacterEllipsis" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
+              <TextBlock Grid.Row="2" x:Name="DataFolderValidationText"
+                         Text="Select the game installation folder, pso2_bin, or data folder."
+                         TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" FontSize="10" />
+              <StackPanel Grid.Row="3" Spacing="4" Margin="0,2">
+                <TextBlock x:Name="SkinTexturesHeaderText" Text="Skin Textures"
+                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SectionTextBrush}" />
+                <Grid ColumnDefinitions="56,*" ColumnSpacing="6">
+                  <TextBlock x:Name="SkinType1Label" Text="Type 1" VerticalAlignment="Center"
+                             Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" />
+                  <ComboBox Grid.Column="1" x:Name="SkinType1ComboBox"
+                            ItemsSource="{Binding SkinType1Options}" IsEnabled="False">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="local:SkinOptionViewModel">
+                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                </Grid>
+                <Grid ColumnDefinitions="56,*" ColumnSpacing="6">
+                  <TextBlock x:Name="SkinType2Label" Text="Type 2" VerticalAlignment="Center"
+                             Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" />
+                  <ComboBox Grid.Column="1" x:Name="SkinType2ComboBox"
+                            ItemsSource="{Binding SkinType2Options}" IsEnabled="False">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="local:SkinOptionViewModel">
+                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                </Grid>
+              </StackPanel>
+              <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                <TextBox x:Name="ModelSearchBox" PlaceholderText="Name · ID · file name · MD5" />
+                <Button Grid.Column="1" x:Name="SearchModelsButton" Content="Search" IsEnabled="False" />
+              </Grid>
+              <WrapPanel Grid.Row="5" ItemSpacing="10" LineSpacing="2">
+                <CheckBox x:Name="WearBasewearCheck" Content="Basewear" IsChecked="True"
+                          Classes="small" />
+                <CheckBox x:Name="WearOuterwearCheck" Content="Outerwear" IsChecked="True"
+                          Classes="small" />
+                <CheckBox x:Name="WearSetwearCheck" Content="Setwear" IsChecked="True"
+                          Classes="small" />
+                <CheckBox x:Name="WearCostumeCheck" Content="Costume" IsChecked="True"
+                          Classes="small" />
               </WrapPanel>
-            </Expander>
+              <Border Grid.Row="6" Background="{DynamicResource PanelSurfaceBrush}" CornerRadius="6" Padding="4">
+                <ListBox x:Name="ModelSearchResultsList" ItemsSource="{Binding SearchResults}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="local:ModelSearchResultViewModel">
+                      <StackPanel Margin="4,3" Spacing="1" ToolTip.Tip="{Binding ResolvedPath}">
+                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Metadata}" Foreground="{DynamicResource MutedTextBrush}" FontSize="10"
+                                   TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </Border>
+              <Button Grid.Row="7" x:Name="LoadSearchResultButton"
+                      Content="Load selected model" IsEnabled="False" />
+            </Grid>
+                </Expander>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
 
-            <TextBlock x:Name="ShapeSlidersHeaderText" Margin="0,7,0,6" Text="Shape Sliders · S / P / R"
-                       FontWeight="SemiBold" Foreground="{DynamicResource SectionTextBrush}" />
+          <!-- View: how the preview looks -->
+          <TabItem x:Name="ViewTab" Header="View">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Margin="18,10,18,14" Spacing="12">
+                <TextBlock x:Name="DisplaySectionText" Classes="section" Text="Display" />
+                <Border Classes="card">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="96,*" ColumnSpacing="10">
+                      <TextBlock x:Name="LanguageLabel" Text="Language" Classes="label" VerticalAlignment="Center" />
+                      <ComboBox Grid.Column="1" x:Name="LanguageComboBox" SelectedIndex="0"
+                                HorizontalAlignment="Stretch" ToolTip.Tip="Interface language" />
+                    </Grid>
+                    <Grid ColumnDefinitions="96,*" ColumnSpacing="10">
+                      <TextBlock x:Name="BackgroundLabel" Text="Background" Classes="label" VerticalAlignment="Center" />
+                      <ComboBox Grid.Column="1" x:Name="BackgroundComboBox" SelectedIndex="0"
+                                HorizontalAlignment="Stretch" ToolTip.Tip="Viewport background">
+                        <ComboBoxItem Content="Dark" Tag="0E1114" />
+                        <ComboBoxItem Content="Graphite" Tag="2A2E36" />
+                        <ComboBoxItem Content="Gray" Tag="6B7280" />
+                        <ComboBoxItem Content="Silver" Tag="C9CED6" />
+                        <ComboBoxItem Content="White" Tag="F2F4F7" />
+                        <ComboBoxItem Content="Navy" Tag="17233D" />
+                        <ComboBoxItem Content="Forest" Tag="1D3327" />
+                        <ComboBoxItem Content="Magenta" Tag="8A1D6B" />
+                      </ComboBox>
+                    </Grid>
+                    <CheckBox x:Name="FloorGuideCheckBox" Content="Floor guide" IsChecked="True"
+                              ToolTip.Tip="Show the world Y=0 floor guide" />
+                    <CheckBox x:Name="DemoLightingCheckBox" Content="Demo lighting (preview)" IsChecked="False" />
+                  </StackPanel>
+                </Border>
 
-            <Border Background="{DynamicResource PanelSurfaceBrush}" CornerRadius="6" Padding="6">
-              <ItemsControl ItemsSource="{Binding SliderGroups}" HorizontalAlignment="Stretch">
-              <ItemsControl.Styles>
-                <Style Selector="ContentPresenter">
-                  <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                </Style>
-              </ItemsControl.Styles>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="local:ShapeGroupViewModel">
-                  <Expander Header="{Binding Label}" Margin="0,1"
-                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                    <StackPanel Margin="4,5,2,8" Spacing="4">
-                      <TextBlock Text="{Binding ScaleLabel}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
-                      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,140"
-                            ColumnSpacing="6" RowSpacing="2">
-                        <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
-                                   IsVisible="{Binding SupportsScaleX}" />
-                        <Slider Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="{Binding ScaleStep}"
-                                IsSnapToTickEnabled="True" SmallChange="{Binding ScaleStep}" LargeChange="0.1"
-                                Value="{Binding ScaleX, Mode=TwoWay}" IsVisible="{Binding SupportsScaleX}" />
-                        <NumericUpDown Grid.Column="2" Value="{Binding ScaleX, Mode=TwoWay}"
-                                       Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}"
-                                       Increment="{Binding ScaleStep}" FormatString="{Binding ScaleFormat}"
-                                       HorizontalContentAlignment="Right" IsVisible="{Binding SupportsScaleX}" />
-
-                        <TextBlock Grid.Row="1" Text="Y" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
-                                   IsVisible="{Binding SupportsScaleY}" />
-                        <Slider Grid.Row="1" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="{Binding ScaleStep}"
-                                IsSnapToTickEnabled="True" SmallChange="{Binding ScaleStep}" LargeChange="0.1"
-                                Value="{Binding ScaleY, Mode=TwoWay}" IsVisible="{Binding SupportsScaleY}" />
-                        <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding ScaleY, Mode=TwoWay}"
-                                       Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}"
-                                       Increment="{Binding ScaleStep}" FormatString="{Binding ScaleFormat}"
-                                       HorizontalContentAlignment="Right" IsVisible="{Binding SupportsScaleY}" />
-
-                        <TextBlock Grid.Row="2" Text="Z" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}"
-                                   IsVisible="{Binding SupportsScaleZ}" />
-                        <Slider Grid.Row="2" Grid.Column="1" Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}" TickFrequency="{Binding ScaleStep}"
-                                IsSnapToTickEnabled="True" SmallChange="{Binding ScaleStep}" LargeChange="0.1"
-                                Value="{Binding ScaleZ, Mode=TwoWay}" IsVisible="{Binding SupportsScaleZ}" />
-                        <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding ScaleZ, Mode=TwoWay}"
-                                       Minimum="{Binding ScaleMinimum}" Maximum="{Binding ScaleMaximum}"
-                                       Increment="{Binding ScaleStep}" FormatString="{Binding ScaleFormat}"
-                                       HorizontalContentAlignment="Right" IsVisible="{Binding SupportsScaleZ}" />
-                      </Grid>
-
-                      <TextBlock Text="{Binding PositionLabel}" Margin="0,3,0,0" FontSize="11"
-                                 Foreground="{DynamicResource SecondaryTextBrush}"
-                                 IsVisible="{Binding SupportsPosition}" />
-                      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,140"
-                            ColumnSpacing="6" RowSpacing="2" IsVisible="{Binding SupportsPosition}">
-                        <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
-                        <Slider Grid.Column="1" Value="{Binding PositionX, Mode=TwoWay}"
-                                Minimum="-1" Maximum="1" TickFrequency="0.001"
-                                IsSnapToTickEnabled="True" SmallChange="0.001" LargeChange="0.01" />
-                        <NumericUpDown Grid.Column="2" Value="{Binding PositionX, Mode=TwoWay}"
-                                       Minimum="-1" Maximum="1" Increment="0.001" FormatString="F3"
-                                       HorizontalContentAlignment="Right" />
-
-                        <TextBlock Grid.Row="1" Text="Y" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
-                        <Slider Grid.Row="1" Grid.Column="1" Value="{Binding PositionY, Mode=TwoWay}"
-                                Minimum="-1" Maximum="1" TickFrequency="0.001"
-                                IsSnapToTickEnabled="True" SmallChange="0.001" LargeChange="0.01" />
-                        <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding PositionY, Mode=TwoWay}"
-                                       Minimum="-1" Maximum="1" Increment="0.001" FormatString="F3"
-                                       HorizontalContentAlignment="Right" />
-
-                        <TextBlock Grid.Row="2" Text="Z" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
-                        <Slider Grid.Row="2" Grid.Column="1" Value="{Binding PositionZ, Mode=TwoWay}"
-                                Minimum="-1" Maximum="1" TickFrequency="0.001"
-                                IsSnapToTickEnabled="True" SmallChange="0.001" LargeChange="0.01" />
-                        <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding PositionZ, Mode=TwoWay}"
-                                       Minimum="-1" Maximum="1" Increment="0.001" FormatString="F3"
-                                       HorizontalContentAlignment="Right" />
-                      </Grid>
-
-                      <TextBlock Text="{Binding RotationLabel}" Margin="0,3,0,0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"
-                                 IsVisible="{Binding ShowsRotation}" IsEnabled="{Binding SupportsRotation}" />
-                      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="18,*,140"
-                            ColumnSpacing="6" RowSpacing="2" IsVisible="{Binding ShowsRotation}"
-                            IsEnabled="{Binding SupportsRotation}">
-                        <TextBlock Text="X" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
-                        <local:ZeroSnapSlider Grid.Column="1" Value="{Binding RotationX, Mode=TwoWay}"
-                                              Minimum="-180" Maximum="180" TickFrequency="0.01"
-                                              IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
-                                              ZeroSnapThreshold="1" />
-                        <NumericUpDown Grid.Column="2" Value="{Binding RotationX, Mode=TwoWay}"
-                                       Minimum="-180" Maximum="180" Increment="0.01" FormatString="F2"
-                                       HorizontalContentAlignment="Right" />
-
-                        <TextBlock Grid.Row="1" Text="Y" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
-                        <local:ZeroSnapSlider Grid.Row="1" Grid.Column="1" Value="{Binding RotationY, Mode=TwoWay}"
-                                              Minimum="-180" Maximum="180" TickFrequency="0.01"
-                                              IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
-                                              ZeroSnapThreshold="1" />
-                        <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding RotationY, Mode=TwoWay}"
-                                       Minimum="-180" Maximum="180" Increment="0.01" FormatString="F2"
-                                       HorizontalContentAlignment="Right" />
-
-                        <TextBlock Grid.Row="2" Text="Z" VerticalAlignment="Center" Foreground="{DynamicResource AxisTextBrush}" />
-                        <local:ZeroSnapSlider Grid.Row="2" Grid.Column="1" Value="{Binding RotationZ, Mode=TwoWay}"
-                                              Minimum="-180" Maximum="180" TickFrequency="0.01"
-                                              IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.1"
-                                              ZeroSnapThreshold="1" />
-                        <NumericUpDown Grid.Row="2" Grid.Column="2" Value="{Binding RotationZ, Mode=TwoWay}"
-                                       Minimum="-180" Maximum="180" Increment="0.01" FormatString="F2"
-                                       HorizontalContentAlignment="Right" />
-                      </Grid>
-                    </StackPanel>
-                  </Expander>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </Border>
-          </StackPanel>
-        </ScrollViewer>
-
-        <StackPanel Grid.Row="4" Margin="0,12,0,0" Spacing="7">
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
-            <Button x:Name="LoadCharacterButton" Content="Load character file…" IsEnabled="False" />
-            <Button Grid.Column="1" x:Name="LoadAqmButton" Content="Load _sa.aqm…" IsEnabled="False" />
-          </Grid>
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="7">
-            <Button x:Name="ResetShapeButton" Content="Reset shape" IsEnabled="False" />
-            <Button Grid.Column="1" x:Name="SaveAqmButton" Content="Save _sa.aqm…" IsEnabled="False" />
-          </Grid>
-        </StackPanel>
-
-        <TextBlock Grid.Row="5" x:Name="CameraHelpText" Margin="0,11,0,0" TextWrapping="Wrap"
-                   Foreground="{DynamicResource MutedTextBrush}" FontSize="11"
-                   Text="Left drag: rotate camera   Right drag: rotate model   Ctrl+drag: move vertically   Middle click: reset   Wheel: zoom" />
+                <TextBlock x:Name="PhysicsSectionText" Classes="section" Text="Physics" />
+                <Border Classes="card">
+                  <StackPanel Spacing="6">
+                    <CheckBox x:Name="ClothPhysicsCheckBox" Content="Cloth physics (at rest)" IsChecked="True" />
+                    <CheckBox x:Name="ClothIdleCheckBox" Content="Settle in the creator idle" IsChecked="True"
+                              Margin="26,0,0,0" />
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+        </TabControl>
       </Grid>
     </Border>
 
@@ -313,15 +347,22 @@
     <Grid Grid.Row="0" Grid.Column="2" Background="#0E1118">
       <rendering:ModelViewport x:Name="Viewport" Focusable="False" IsHitTestVisible="False" />
       <Border x:Name="ViewportInputSurface" Background="Transparent" Focusable="True" />
+      <Border Classes="overlay" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+              Margin="14" IsHitTestVisible="False">
+        <TextBlock x:Name="CameraHelpText" TextWrapping="Wrap" MaxWidth="520" FontSize="11"
+                   Foreground="#C9D2E0"
+                   Text="Left drag: rotate camera   Right drag: rotate model   Ctrl+drag: move vertically   Middle click: reset   Wheel: zoom" />
+      </Border>
     </Grid>
 
     <Border Grid.Row="1" Grid.ColumnSpan="3"
             Background="{DynamicResource StatusBackgroundBrush}"
             BorderBrush="{DynamicResource PanelBorderBrush}"
-            BorderThickness="0,1,0,0" Padding="12,7">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock x:Name="StatusText" Text="Ready" Foreground="{DynamicResource StatusTextBrush}" />
-        <TextBlock Grid.Column="1" x:Name="StatisticsText"
+            BorderThickness="0,1,0,0" Padding="14,6">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <TextBlock x:Name="StatusText" Text="Ready" FontSize="12"
+                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource StatusTextBrush}" />
+        <TextBlock Grid.Column="1" x:Name="StatisticsText" FontSize="12"
                    Text="Models 0 · Vertices 0 · Triangles 0" Foreground="{DynamicResource StatisticsTextBrush}" />
       </Grid>
     </Border>

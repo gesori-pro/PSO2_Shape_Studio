@@ -17,6 +17,7 @@ using Pso2ShapeStudio.Character;
 using Pso2ShapeStudio.GameData;
 using Pso2ShapeStudio.Formats;
 using Pso2ShapeStudio.Rigging;
+using Pso2ShapeStudio.Rigging.Cloth;
 
 namespace Pso2ShapeStudio.App;
 
@@ -42,6 +43,8 @@ public partial class MainWindow : Window
     private AqnSkeleton? _skeleton;
     private ProportionResult? _proportions;
     private ShapeAdjustFile? _shapeAdjust;
+    private ClothSimulation? _cloth;
+    private readonly Dictionary<bool, IdlePose?> _idlePoses = new();
     private ShapeProfile _profile = new();
     private readonly List<ShapeHistoryState> _shapeUndo = [];
     private readonly List<ShapeHistoryState> _shapeRedo = [];
@@ -107,6 +110,12 @@ public partial class MainWindow : Window
         ApplyLanguage(initializeDataState: true);
         LanguageComboBox.SelectionChanged += LanguageChanged;
         DemoLightingCheckBox.Click += (_, _) => Viewport.SetDemoLighting(DemoLightingCheckBox.IsChecked == true);
+        ClothPhysicsCheckBox.Click += (_, _) =>
+        {
+            ClothIdleCheckBox.IsEnabled = ClothPhysicsCheckBox.IsChecked == true;
+            RebuildPose();
+        };
+        ClothIdleCheckBox.Click += (_, _) => RebuildPose();
         BackgroundComboBox.SelectionChanged += async (_, _) =>
         {
             ApplyBackgroundSelection();
@@ -346,6 +355,17 @@ public partial class MainWindow : Window
         ToolTip.SetTip(LanguageComboBox, L(AppText.LanguageTip));
         ToolTip.SetTip(BackgroundComboBox, L(AppText.BackgroundTip));
         DemoLightingCheckBox.Content = L(AppText.DemoLighting);
+        ClothPhysicsCheckBox.Content = L(AppText.ClothPhysics);
+        ToolTip.SetTip(ClothPhysicsCheckBox, L(AppText.ClothPhysicsTip));
+        ClothIdleCheckBox.Content = L(AppText.ClothIdlePose);
+        ShapeTab.Header = L(AppText.TabShape);
+        ModelsTab.Header = L(AppText.TabModels);
+        ViewTab.Header = L(AppText.TabView);
+        LanguageLabel.Text = L(AppText.LanguageLabel);
+        BackgroundLabel.Text = L(AppText.BackgroundLabel);
+        DisplaySectionText.Text = L(AppText.DisplaySection);
+        PhysicsSectionText.Text = L(AppText.PhysicsSection);
+        ToolTip.SetTip(ClothIdleCheckBox, L(AppText.ClothIdlePoseTip));
         FloorGuideCheckBox.Content = L(AppText.FloorGuide);
         ToolTip.SetTip(FloorGuideCheckBox, L(AppText.FloorGuideTip));
         OrnamentsExpander.Header = L(AppText.Ornaments);
@@ -548,7 +568,9 @@ public partial class MainWindow : Window
         CharacterSurfaceSettings? Surface,
         ShapeAdjustFile? ShapeAdjust,
         int ArchiveEntryCount,
-        int ArchiveDdsCount);
+        int ArchiveDdsCount,
+        ClothSimulation? Cloth,
+        string? ClothProblem);
 
     private sealed record ShapeHistoryState(ShapeProfile Profile, ShapeAdjustFile? ShapeAdjust);
 }

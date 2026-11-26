@@ -12,6 +12,95 @@
         <Style Selector="NumericUpDown /template/ ButtonSpinner">
             <Setter Property="local:SpinnerButtonOrder.DecreaseFirst" Value="True" />
         </Style>
+
+        <!-- Sidebar look: one surface, cards for groups, quiet section titles. -->
+        <Style Selector="Border.sidebar">
+            <Setter Property="Background" Value="{DynamicResource SidebarBackgroundBrush}" />
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="Border.badge">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="7,1" />
+        </Style>
+        <Style Selector="Border.overlay">
+            <Setter Property="Background" Value="#99101420" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+        <Style Selector="TextBlock.title">
+            <Setter Property="FontSize" Value="19" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.badge">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.subtitle">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource SectionTextBrush}" />
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+        </Style>
+        <Style Selector="CheckBox.small">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="Padding" Value="6,0,0,0" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Height" Value="38" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.subtle">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="TabControl.sidebar">
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="TabControl.sidebar /template/ ItemsPresenter#PART_ItemsPresenter">
+            <Setter Property="Margin" Value="12,0,12,0" />
+        </Style>
+        <Style Selector="TabControl.sidebar TabItem">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="Padding" Value="8,0" />
+        </Style>
+        <Style Selector="Expander">
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <!-- Slider groups: flat rows in their card, a line between them. -->
+        <Style Selector="Border.card Expander">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+        <Style Selector="Border.card Expander /template/ ToggleButton#ExpanderHeader">
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Padding" Value="10,0,8,0" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
     </Application.Styles>
 
     <Application.Resources>
@@ -29,6 +118,18 @@
                     <SolidColorBrush x:Key="StatusBackgroundBrush">#F1F5F9</SolidColorBrush>
                     <SolidColorBrush x:Key="StatusTextBrush">#334155</SolidColorBrush>
                     <SolidColorBrush x:Key="StatisticsTextBrush">#64748B</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBackgroundBrush">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBorderBrush">#E2E8F0</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonBackground">#3B6FE0</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver">#4C7EEA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPressed">#2F5BC0</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonForeground">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonForegroundPointerOver">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonForegroundPressed">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ExpanderHeaderBackground">Transparent</SolidColorBrush>
+                    <SolidColorBrush x:Key="ExpanderHeaderBorderBrush">Transparent</SolidColorBrush>
+                    <SolidColorBrush x:Key="ExpanderContentBackground">Transparent</SolidColorBrush>
+                    <SolidColorBrush x:Key="ExpanderContentBorderBrush">#E2E8F0</SolidColorBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="SidebarBackgroundBrush">#151923</SolidColorBrush>
@@ -42,6 +143,18 @@
                     <SolidColorBrush x:Key="StatusBackgroundBrush">#10141C</SolidColorBrush>
                     <SolidColorBrush x:Key="StatusTextBrush">#B9C2D0</SolidColorBrush>
                     <SolidColorBrush x:Key="StatisticsTextBrush">#7F8CA3</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBackgroundBrush">#1B202B</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBorderBrush">#2A3140</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonBackground">#3B6FE0</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver">#4C7EEA</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPressed">#2F5BC0</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonForeground">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonForegroundPointerOver">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentButtonForegroundPressed">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ExpanderHeaderBackground">Transparent</SolidColorBrush>
+                    <SolidColorBrush x:Key="ExpanderHeaderBorderBrush">Transparent</SolidColorBrush>
+                    <SolidColorBrush x:Key="ExpanderContentBackground">Transparent</SolidColorBrush>
+                    <SolidColorBrush x:Key="ExpanderContentBorderBrush">#2A3140</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

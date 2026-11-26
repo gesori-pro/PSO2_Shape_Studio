@@ -421,6 +421,9 @@ public partial class MainWindow : Window
         var locator = new Pso2DataLocator(validation.DataPath!);
 
         _dataLocator = locator;
+        // A new data folder may hold the creator idle the cloth settles in.
+        _idlePoses.Clear();
+        RebuildPose();
         DataFolderText.Text = locator.DataPath;
         DataFolderText.Foreground = DataInfoBrush;
         DataFolderValidationText.Text = L(AppText.DataPathValid);

@@ -17,6 +17,7 @@ using Pso2ShapeStudio.Character;
 using Pso2ShapeStudio.GameData;
 using Pso2ShapeStudio.Formats;
 using Pso2ShapeStudio.Rigging;
+using Pso2ShapeStudio.Rigging.Cloth;
 
 namespace Pso2ShapeStudio.App;
 
@@ -152,6 +153,7 @@ public partial class MainWindow : Window
             if (result.Skeleton is not null)
             {
                 _skeleton = result.Skeleton;
+                _cloth = result.Cloth;
                 RebuildSliderGroups();
             }
 
@@ -207,6 +209,8 @@ public partial class MainWindow : Window
             if (result.ArchiveDdsCount > 0) parts.Add(L(AppText.IceDdsCount, result.ArchiveDdsCount));
             if (result.ArchiveEntryCount > 0) parts.Add(L(AppText.IceEntriesCount, result.ArchiveEntryCount));
             if (_skeleton is not null) parts.Add(L(AppText.BonesCount, _skeleton.Bones.Count));
+            if (result.Cloth is not null) parts.Add(L(AppText.ClothParticlesCount, result.Cloth.ParticleCount));
+            if (result.ClothProblem is not null) parts.Add(L(AppText.ClothUnavailable, result.ClothProblem));
             if (result.Proportions is not null)
             {
                 parts.Add(L(AppText.CharacterBonesCount, result.Proportions.Bones.Count));
@@ -236,6 +240,7 @@ public partial class MainWindow : Window
         CharacterColorPalette? colors = null;
         CharacterSurfaceSettings? surface = null;
         ShapeAdjustFile? shapeAdjust = null;
+        byte[]? clothData = null;
         var archiveEntryCount = 0;
         var archiveDdsCount = 0;
         var explicitAqm = paths.FirstOrDefault(path => Extension(path) == ".aqm");
@@ -256,6 +261,7 @@ public partial class MainWindow : Window
             var archive = ModelArchiveLoader.Load(path, mapping);
             models.AddRange(archive.Models);
             skeleton ??= archive.Skeleton;
+            clothData ??= archive.ClothData;
             shapeAdjust ??= archive.ShapeAdjustData is { } shapeBytes
                 ? ShapeAdjustFile.Load(shapeBytes)
                 : null;
@@ -279,6 +285,11 @@ public partial class MainWindow : Window
             }
 
             models.Add(AqpLoader.Load(path));
+            var adjacentCloth = Path.ChangeExtension(path, ".fltd");
+            if (clothData is null && File.Exists(adjacentCloth))
+            {
+                clothData = File.ReadAllBytes(adjacentCloth);
+            }
             if (explicitAqm is null && shapeAdjust is null)
             {
                 var adjacentShape = Path.Combine(
@@ -304,6 +315,11 @@ public partial class MainWindow : Window
             shapeAdjust = ShapeAdjustFile.Load(explicitAqm);
         }
 
+        string? clothProblem = null;
+        var cloth = skeleton is not null && clothData is not null
+            ? ClothSimulation.TryCreate(clothData, skeleton, out clothProblem)
+            : null;
+
         return new LoadResult(
             skeleton,
             models,
@@ -312,7 +328,9 @@ public partial class MainWindow : Window
             surface,
             shapeAdjust,
             archiveEntryCount,
-            archiveDdsCount);
+            archiveDdsCount,
+            cloth,
+            clothProblem);
     }
 
     private void ModelVisibilityChanged(object? sender, EventArgs e) => RefreshViewportModels();

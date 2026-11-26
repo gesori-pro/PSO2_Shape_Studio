@@ -13,6 +13,7 @@ public partial class MainWindow : Window
 {
     private DispatcherTimer? _stressTimer;
     private int _stressFrame;
+    private bool _showCreatorIdle;
 
     /// <summary>
     /// Wires the hooks behind --camera-diagnostics, --renderer-smoke= and
@@ -26,6 +27,17 @@ public partial class MainWindow : Window
         {
             DemoLightingCheckBox.IsChecked = true;
             Viewport.SetDemoLighting(true);
+        }
+        _showCreatorIdle = arguments.Contains("--show-creator-idle", StringComparer.OrdinalIgnoreCase);
+        var tabArgument = arguments.FirstOrDefault(a => a.StartsWith("--tab=", StringComparison.OrdinalIgnoreCase));
+        if (tabArgument is not null && int.TryParse(tabArgument["--tab=".Length..], out var tab))
+        {
+            SidebarTabs.SelectedIndex = tab;
+        }
+        Viewport.ShowAmbientOcclusion = arguments.Contains("--show-ao", StringComparer.OrdinalIgnoreCase);
+        if (arguments.Contains("--no-cloth", StringComparer.OrdinalIgnoreCase))
+        {
+            ClothPhysicsCheckBox.IsChecked = false;
         }
         if (arguments.Contains("--camera-diagnostics", StringComparer.OrdinalIgnoreCase))
         {

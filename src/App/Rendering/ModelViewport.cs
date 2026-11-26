@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
@@ -254,6 +255,9 @@ public sealed partial class ModelViewport : OpenGlControlBase
             _alphaCutoffLocation = _gl.GetUniformLocation(_program, "uAlphaCutoff");
             _blendModeLocation = _gl.GetUniformLocation(_program, "uBlendMode");
 
+            CreateShadowResources(_gl);
+            CreateAoResources(_gl);
+
             var block = _gl.GetUniformBlockIndex(_program, "Bones");
             _gl.UniformBlockBinding(_program, block, 0);
             _gl.GetInteger(GLEnum.MaxUniformBlockSize, out int maximumBlockSize);
@@ -301,6 +305,8 @@ public sealed partial class ModelViewport : OpenGlControlBase
             _identityBoneBuffer = 0;
             DeleteFloorGuide(_gl);
             DeleteDemoTargets(_gl);
+            DeleteShadowResources(_gl);
+            DeleteAoResources(_gl);
             if (_demoEnvironment != 0) _gl.DeleteTexture(_demoEnvironment);
             _demoEnvironment = 0;
             if (_gameEnvironment != 0) _gl.DeleteTexture(_gameEnvironment);
@@ -332,8 +338,12 @@ public sealed partial class ModelViewport : OpenGlControlBase
             UploadPendingScene(_gl);
             UploadPendingBones(_gl);
 
-            var width = Math.Max(1u, (uint)Math.Round(Bounds.Width));
-            var height = Math.Max(1u, (uint)Math.Round(Bounds.Height));
+            // Bounds is in device-independent pixels but the surface we draw
+            // into is physical ones, so at 125% display scaling an unscaled
+            // viewport covers 80% of it and leaves the rest black.
+            var scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
+            var width = Math.Max(1u, (uint)Math.Round(Bounds.Width * scaling));
+            var height = Math.Max(1u, (uint)Math.Round(Bounds.Height * scaling));
             if (_demoLighting) EnsureDemoTargets(_gl, width, height);
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _demoLighting ? _hdrFramebuffer : (uint)framebuffer);
             _gl.Viewport(0, 0, width, height);
@@ -350,11 +360,34 @@ public sealed partial class ModelViewport : OpenGlControlBase
             var modelTransform = Matrix4x4.CreateRotationY(_modelYaw) *
                                  Matrix4x4.CreateTranslation(0f, Volatile.Read(ref _groundLift), 0f);
             var sortingModelTransform = modelTransform;
+            var light = _demoLighting ? new Vector3(0.29143327f, 0.11152586f, 0.95006776f) : new Vector3(0.38f, 0.78f, 0.49f);
+            var shadowMatrix = Matrix4x4.Identity;
+            if (_demoLighting)
+            {
+                var shadowMask = Volatile.Read(ref _hiddenMeshPartMask);
+                shadowMatrix = RenderShadowMap(_gl, Vector3.Normalize(light), modelTransform,
+                    _gpuMeshes.Where(value => IsMeshPartVisible(value.Part, shadowMask)));
+                RenderAmbientOcclusion(_gl, viewProjection, cameraPosition, modelTransform,
+                    _gpuMeshes.Where(value => IsMeshPartVisible(value.Part, shadowMask)), width, height);
+                _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _hdrFramebuffer);
+                _gl.Viewport(0, 0, width, height);
+            }
+
             _gl.UseProgram(_program);
+            _gl.Uniform1(_useShadowLocation, _demoLighting ? 1 : 0);
+            _gl.UniformMatrix4(_shadowMatrixLocation, 1, false, (float*)&shadowMatrix);
+            _gl.Uniform1(_shadowMapLocation, 10);
+            _gl.Uniform1(_useAoLocation, _demoLighting ? 1 : 0);
+            _gl.Uniform1(_aoTextureLocation, 11);
+            _gl.Uniform1(_showAoLocation, ShowAmbientOcclusion ? 1 : 0);
+            _gl.Uniform2(_viewportSizeLocation, (float)width, (float)height);
+            _gl.ActiveTexture(TextureUnit.Texture11);
+            _gl.BindTexture(TextureTarget.Texture2D, _aoBlurred);
+            _gl.ActiveTexture(TextureUnit.Texture10);
+            _gl.BindTexture(TextureTarget.Texture2D, _shadowDepth);
             _gl.UniformMatrix4(_viewProjectionLocation, 1, false, (float*)&viewProjection);
             _gl.UniformMatrix4(_modelTransformLocation, 1, false, (float*)&identityTransform);
             _gl.Uniform1(_demoLightingLocation, _demoLighting ? 1 : 0);
-            var light = _demoLighting ? new Vector3(0.29143327f, 0.11152586f, 0.95006776f) : new Vector3(0.38f, 0.78f, 0.49f);
             _gl.Uniform3(_lightDirectionLocation, light.X, light.Y, light.Z);
             _gl.Uniform3(
                 _cameraPositionLocation,
@@ -396,28 +429,39 @@ public sealed partial class ModelViewport : OpenGlControlBase
             var hiddenMeshPartMask = Volatile.Read(ref _hiddenMeshPartMask);
             var visibleMeshes = _gpuMeshes.Where(value =>
                 IsMeshPartVisible(value.Part, hiddenMeshPartMask));
-            var drawOrder = visibleMeshes
-                .Where(value => !value.IsTransparent)
-                .Concat(visibleMeshes
-                    .Where(value => value.IsTransparent)
-                    .OrderByDescending(value =>
-                        Vector3.DistanceSquared(
-                            cameraPosition,
-                            Vector3.Transform(value.Center, sortingModelTransform))));
+            // The game's order (captured creator frame): opaque, hollow and
+            // the solid part of blendalpha (its 0.9931 cut, mode 4) first,
+            // writing depth; then, far to near, blendalpha again blended
+            // over itself and what is behind (SrcAlpha / 1-SrcAlpha, depth
+            // written, both faces) and additive surfaces (SrcAlpha / One,
+            // no depth write).
+            var opaquePasses = visibleMeshes
+                .Where(value => value.BlendMode != MaterialBlendMode.Additive)
+                .Select(value => (Mesh: value, Mode: value.BlendMode == MaterialBlendMode.AlphaBlend ? 4 : (int)value.BlendMode));
+            var blendedPasses = visibleMeshes
+                .Where(value => value.IsTransparent)
+                .OrderByDescending(value =>
+                    Vector3.DistanceSquared(
+                        cameraPosition,
+                        Vector3.Transform(value.Center, sortingModelTransform)))
+                .Select(value => (Mesh: value, Mode: (int)value.BlendMode));
+            var drawOrder = opaquePasses.Concat(blendedPasses);
             var depthWriteEnabled = true;
             var blendingEnabled = false;
-            var activeBlendMode = MaterialBlendMode.Opaque;
-            foreach (var mesh in drawOrder)
+            var additive = false;
+            foreach (var (mesh, mode) in drawOrder)
             {
-                if (mesh.IsTransparent == depthWriteEnabled)
+                var blended = mode is (int)MaterialBlendMode.AlphaBlend or (int)MaterialBlendMode.Additive;
+                var writesDepth = mode != (int)MaterialBlendMode.Additive;
+                if (writesDepth != depthWriteEnabled)
                 {
-                    depthWriteEnabled = !mesh.IsTransparent;
+                    depthWriteEnabled = writesDepth;
                     _gl.DepthMask(depthWriteEnabled);
                 }
 
-                if (mesh.IsTransparent != blendingEnabled)
+                if (blended != blendingEnabled)
                 {
-                    blendingEnabled = mesh.IsTransparent;
+                    blendingEnabled = blended;
                     if (blendingEnabled)
                     {
                         _gl.Enable(EnableCap.Blend);
@@ -428,14 +472,13 @@ public sealed partial class ModelViewport : OpenGlControlBase
                     }
                 }
 
-                if (mesh.BlendMode != activeBlendMode)
+                var isAdditive = mode == (int)MaterialBlendMode.Additive;
+                if (blended && isAdditive != additive)
                 {
-                    activeBlendMode = mesh.BlendMode;
+                    additive = isAdditive;
                     _gl.BlendFunc(
                         BlendingFactor.SrcAlpha,
-                        activeBlendMode == MaterialBlendMode.Additive
-                            ? BlendingFactor.One
-                            : BlendingFactor.OneMinusSrcAlpha);
+                        additive ? BlendingFactor.One : BlendingFactor.OneMinusSrcAlpha);
                 }
 
                 _gl.Uniform4(
@@ -477,7 +520,7 @@ public sealed partial class ModelViewport : OpenGlControlBase
                 _gl.Uniform1(_multiplyColorLocation, mesh.MultiplyColor ? 1 : 0);
                 _gl.Uniform1(_skinMaterialLocation, mesh.SkinMaterial ? 1 : 0);
                 _gl.Uniform1(_alphaCutoffLocation, mesh.AlphaCutoff);
-                _gl.Uniform1(_blendModeLocation, (int)mesh.BlendMode);
+                _gl.Uniform1(_blendModeLocation, mode);
                 _gl.ActiveTexture(TextureUnit.Texture0);
                 _gl.BindTexture(TextureTarget.Texture2D, mesh.Texture);
                 _gl.ActiveTexture(TextureUnit.Texture1);

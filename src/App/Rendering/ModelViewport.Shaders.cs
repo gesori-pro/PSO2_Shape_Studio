@@ -142,7 +142,42 @@ public sealed partial class ModelViewport
         uniform bool uMultiplyColor;
         uniform float uAlphaCutoff;
         uniform int uBlendMode;
+        uniform bool uUseShadow;
+        uniform mat4 uShadowMatrix;
+        uniform highp sampler2DShadow uShadowMap;
+        uniform bool uUseAo;
+        uniform bool uShowAo;
+        uniform sampler2D uAoTexture;
+        uniform vec2 uViewportSize;
+        // How hard the occlusion pass's result darkens, and how far. The
+        // game's t_AO has no body measurement to match yet; this puts deep
+        // creases (between the thighs) near 0.75 and open skin near 1.
+        const float SCREEN_AO_STRENGTH = 2.0;
+        const float SCREEN_AO_FLOOR = 0.5;
+        float gScreenAo = 1.0;
         out vec4 FragColor;
+
+        // The sun's shadow on this point, 1 = lit (a 3x3 PCF of the depth map).
+        float gShadow = 1.0;
+        float sunShadow(vec3 position, vec3 normal)
+        {
+            vec4 coordinate = uShadowMatrix * vec4(position + normal * 0.004, 1.0);
+            vec3 p = coordinate.xyz / coordinate.w;
+            if (any(lessThan(p, vec3(0.0))) || any(greaterThan(p, vec3(1.0))))
+            {
+                return 1.0;
+            }
+            float texel = 1.0 / float(textureSize(uShadowMap, 0).x);
+            float lit = 0.0;
+            for (int y = -1; y <= 1; y++)
+            {
+                for (int x = -1; x <= 1; x++)
+                {
+                    lit += texture(uShadowMap, vec3(p.xy + vec2(x, y) * texel * 1.5, p.z - 0.0005));
+                }
+            }
+            return lit / 9.0;
+        }
 
         vec3 srgbEncode(vec3 color)
         {
@@ -215,8 +250,9 @@ public sealed partial class ModelViewport
         // material, lit the way its deferred lighting pass lights models 0
         // and 4, with the creator's headlight. The same as the Blender
         // add-on's game shading, which matched the lighting pass of a
-        // captured creator frame to 1.2% (median per pixel). There are no
-        // shadows or screen-space occlusion here: every point sees the sun.
+        // captured creator frame to 1.2% (median per pixel). The sun's
+        // shadow (gShadow) and the screen-space occlusion (gScreenAo) come
+        // from their own passes (ModelViewport.Shadows/Ssao).
         const float PI = 3.14159265;
         // Every character shader darkens the diffuse texture by this much.
         const float ALBEDO_SCALE = 0.61;
@@ -320,6 +356,10 @@ public sealed partial class ModelViewport
 
             float metal = multi.r * multi.r;
             float occlusion = multi.b;
+            // The headlight keeps the material's own; the rest also takes
+            // the screen-space occlusion.
+            float materialOcclusion = occlusion;
+            occlusion *= gScreenAo;
             vec3 diffuseColor = base * (1.0 - metal);
             vec3 f0 = mix(vec3(0.04), base, metal);
             vec3 tintA = base * (1.0 - soft) + scatter * soft * soft;
@@ -341,7 +381,7 @@ public sealed partial class ModelViewport
             float ndlS = clamp(ndl, 0.0, 1.0);
             vec3 direct = gameDiffuse(ndl, soft, occlusion, tintA) +
                           tintB * ((0.5 - 0.5 * ndl) * rim);
-            direct *= sunLight * diffuseColor;
+            direct *= sunLight * diffuseColor * gShadow;
 
             // the ambient: the environment round the normal (the game reads
             // its cube at mip 7.5, here the two levels around it) and the
@@ -352,7 +392,7 @@ public sealed partial class ModelViewport
                             (environment + SKY_COLOR * up) * occlusion;
 
             vec3 color = (direct / PI + indirect) * (1.0 - metal) +
-                         gameSpecular(n, v, l, ndlS, f0, a2) * sunLight;
+                         gameSpecular(n, v, l, ndlS, f0, a2) * (sunLight * gShadow);
 
             // the fill: colourless, from the opposite side
             float ndl2 = dot(n, -l);
@@ -367,7 +407,7 @@ public sealed partial class ModelViewport
             float ndl3 = dot(n, v);
             color += gameDiffuse(ndl3, soft, 1.0, tintA) * diffuseColor *
                      (lamp * (1.0 - metal) / PI);
-            color += gameSpecular(n, v, v, clamp(ndl3, 0.0, 1.0), f0, a2) * (lamp * occlusion);
+            color += gameSpecular(n, v, v, clamp(ndl3, 0.0, 1.0), f0, a2) * (lamp * materialOcclusion);
 
             // glow: what is not soft carries emission in the same channel
             color += scatter * (1.0 - clamp(soft * 1e5, 0.0, 1.0));
@@ -433,6 +473,13 @@ public sealed partial class ModelViewport
             {
                 discard;
             }
+            // 4 = blendalpha's first pass (1100ga in the captured creator
+            // frame): a fixed 0.9931 cutoff, whatever the AQP says; the solid
+            // part is drawn opaque and writes depth before the blended pass.
+            if (uBlendMode == 4 && albedo.a < 0.9931)
+            {
+                discard;
+            }
 
             vec4 multi = uHasMulti
                 ? texture(uMultiTexture, selectUv(uMultiUvSet))
@@ -444,9 +491,24 @@ public sealed partial class ModelViewport
                     texture(uMuscleMultiTexture, selectUv(uMultiUvSet)),
                     uMuscularity);
             }
-            float outputAlpha = uBlendMode >= 2 ? albedo.a : 1.0;
+            float outputAlpha = uBlendMode == 2 || uBlendMode == 3 ? albedo.a : 1.0;
             if (uDemoLighting && uGameMaterial)
             {
+                if (uUseShadow)
+                {
+                    gShadow = sunShadow(vPosition, geometryNormal);
+                }
+                if (uUseAo)
+                {
+                    float ao = texture(uAoTexture, gl_FragCoord.xy / uViewportSize).r;
+                    gScreenAo = max(1.0 - SCREEN_AO_STRENGTH * (1.0 - ao), SCREEN_AO_FLOOR);
+                    if (uShowAo)
+                    {
+                        // Diagnostic (--show-ao): the occlusion alone.
+                        FragColor = vec4(vec3(gScreenAo), 1.0);
+                        return;
+                    }
+                }
                 FragColor = vec4(gameShade(colorized, multi, normal, geometryNormal), outputAlpha);
                 return;
             }

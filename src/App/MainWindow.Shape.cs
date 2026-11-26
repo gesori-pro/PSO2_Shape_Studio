@@ -17,6 +17,7 @@ using Pso2ShapeStudio.Character;
 using Pso2ShapeStudio.GameData;
 using Pso2ShapeStudio.Formats;
 using Pso2ShapeStudio.Rigging;
+using Pso2ShapeStudio.Rigging.Cloth;
 
 namespace Pso2ShapeStudio.App;
 
@@ -295,9 +296,60 @@ public partial class MainWindow : Window
         }
 
         var pose = composer.Build();
+        if (_showCreatorIdle && CreatorIdle() is { } shownIdle)
+        {
+            // Diagnostic (--show-creator-idle): show the idle pose itself.
+            pose.ReplaceWorld(shownIdle.Apply(_skeleton, pose));
+        }
+
+        if (_cloth is not null && ClothPhysicsCheckBox.IsChecked == true)
+        {
+            var idle = ClothIdleCheckBox.IsChecked == true ? CreatorIdle() : null;
+            pose.ReplaceWorld(idle is null
+                ? _cloth.Settle(pose.WorldMatrices)
+                : _cloth.Settle(pose.WorldMatrices, idle.Apply(_skeleton, pose)));
+        }
+
         Viewport.SetSkinMatrices(pose.SkinMatrices);
         _skinMatrices = pose.SkinMatrices;
         UpdateGroundLift();
+    }
+
+    /// <summary>
+    /// The creator's idle for the loaded character's gender (female without
+    /// a character file), read once from the game data folder. Null when the
+    /// folder is not set or the motion is missing; the cloth then settles in
+    /// the shown pose and the status line says so.
+    /// </summary>
+    private IdlePose? CreatorIdle()
+    {
+        var male = _proportions?.Source.Contains("_mh_", StringComparison.OrdinalIgnoreCase) == true;
+        if (_dataLocator is null)
+        {
+            // Not cached: the data folder may still be restoring at startup.
+            return null;
+        }
+
+        if (!_idlePoses.TryGetValue(male, out var idle))
+        {
+            try
+            {
+                var archive = _dataLocator.ResolveHash(IdlePose.ArchiveHash);
+                idle = archive is null ? null : IdlePose.FromArchive(archive, male);
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException)
+            {
+                idle = null;
+            }
+
+            _idlePoses[male] = idle;
+            if (idle is null)
+            {
+                StatusText.Text = L(AppText.ClothIdleMissing);
+            }
+        }
+
+        return idle;
     }
 
     /// <summary>

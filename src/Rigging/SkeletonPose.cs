@@ -124,6 +124,67 @@ public sealed class SkeletonPose
         }
     }
 
+    /// <summary>
+    /// World matrices of this pose with some bones' bind local transforms
+    /// replaced (a motion frame), the deltas and scale inheritance applied on
+    /// top exactly as <see cref="Rebuild"/> does. The pose itself is unchanged.
+    /// </summary>
+    public Matrix4x4[] WorldWithLocals(IReadOnlyDictionary<int, Matrix4x4> locals)
+    {
+        var world = new Matrix4x4[_skeleton.Bones.Count];
+        for (var index = 0; index < world.Length; index++)
+        {
+            var bone = _skeleton.Bones[index];
+            var local = locals.TryGetValue(index, out var replaced) ? replaced : bone.LocalFromBind;
+            var channel = ComposeDelta(_deltas[index]);
+            if (bone.ParentIndex < 0)
+            {
+                world[index] = channel * local;
+            }
+            else if ((bone.BoneFlags & 0x1C0) != 0)
+            {
+                var parentWorld = world[bone.ParentIndex];
+                var posed = channel * local * WithoutScale(parentWorld);
+                var location = Vector3.Transform(
+                    new Vector3(channel.M41, channel.M42, channel.M43),
+                    local * parentWorld);
+                posed.M41 = location.X;
+                posed.M42 = location.Y;
+                posed.M43 = location.Z;
+                world[index] = posed;
+            }
+            else
+            {
+                world[index] = channel * local * world[bone.ParentIndex];
+            }
+        }
+
+        return world;
+    }
+
+    /// <summary>
+    /// Replaces posed world matrices computed elsewhere (the settled cloth
+    /// bones) and rebuilds the skin matrices of the bones that changed.
+    /// </summary>
+    public void ReplaceWorld(IReadOnlyList<Matrix4x4> world)
+    {
+        if (world.Count != _world.Length)
+        {
+            throw new ArgumentException("One world matrix per skeleton bone is required.", nameof(world));
+        }
+
+        for (var index = 0; index < _world.Length; index++)
+        {
+            if (world[index] == _world[index])
+            {
+                continue;
+            }
+
+            _world[index] = world[index];
+            _skin[index] = _skeleton.Bones[index].InverseBind * world[index];
+        }
+    }
+
     private static Matrix4x4 ComposeDelta(in BoneDelta delta)
     {
         return Matrix4x4.CreateScale(delta.Scale) *
