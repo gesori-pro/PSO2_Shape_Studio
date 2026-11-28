@@ -55,7 +55,8 @@ public sealed class ShapeGroupViewModel : INotifyPropertyChanged
     public double ScaleMinimum { get; }
     public double ScaleMaximum { get; }
     public double ScaleStep { get; }
-    public string ScaleFormat => ScaleStep < 0.01 ? "F3" : "F2";
+    // Three places on every field: testers read 0.001 differences off them.
+    public string ScaleFormat => "F3";
     public string ScaleXText => ScaleX.ToString(ScaleStep < 0.01 ? "F3" : "F2");
     public string ScaleYText => ScaleY.ToString(ScaleStep < 0.01 ? "F3" : "F2");
     public string ScaleZText => ScaleZ.ToString(ScaleStep < 0.01 ? "F3" : "F2");

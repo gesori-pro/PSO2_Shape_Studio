@@ -174,6 +174,23 @@ public sealed record RenderModel(
 {
     public int VertexCount => Meshes.Sum(mesh => mesh.VertexCount);
     public int TriangleCount => Meshes.Sum(mesh => mesh.TriangleCount);
+
+    /// <summary>
+    /// The same model with its palettes pointing into another skeleton
+    /// (<see cref="AqnSkeleton.Merge"/>'s map from this model's own AQN).
+    /// </summary>
+    public RenderModel WithRemappedBones(IReadOnlyList<int> map) => this with
+    {
+        Meshes = Meshes
+            .Select(mesh => mesh with
+            {
+                Palette = mesh.Palette
+                    .Select(bone => (uint)bone < (uint)map.Count && map[bone] >= 0 ? map[bone] : bone)
+                    .ToArray(),
+            })
+            .ToArray(),
+    };
+
     public int TextureCount => Materials
         .SelectMany(material => new[]
         {

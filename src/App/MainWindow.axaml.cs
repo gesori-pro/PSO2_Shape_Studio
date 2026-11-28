@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private ProportionResult? _proportions;
     private ShapeAdjustFile? _shapeAdjust;
     private ClothSimulation? _cloth;
+    private byte[]? _clothData;
     private readonly Dictionary<bool, IdlePose?> _idlePoses = new();
     private ShapeProfile _profile = new();
     private readonly List<ShapeHistoryState> _shapeUndo = [];
@@ -570,7 +571,8 @@ public partial class MainWindow : Window
         int ArchiveEntryCount,
         int ArchiveDdsCount,
         ClothSimulation? Cloth,
-        string? ClothProblem);
+        string? ClothProblem,
+        byte[]? ClothData);
 
     private sealed record ShapeHistoryState(ShapeProfile Profile, ShapeAdjustFile? ShapeAdjust);
 }

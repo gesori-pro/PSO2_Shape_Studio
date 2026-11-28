@@ -149,11 +149,18 @@ public partial class MainWindow : Window
         StatusText.Text = L(AppText.ReadingFiles);
         try
         {
-            var result = await Task.Run(() => LoadFiles(paths, bodyColorMappings));
+            var shownSkeleton = _skeleton;
+            var shownCloth = _clothData;
+            var result = await Task.Run(() => LoadFiles(paths, bodyColorMappings, shownSkeleton, shownCloth));
+            if (result.Skeleton is not null || result.ClothData is not null)
+            {
+                _cloth = result.Cloth;
+                _clothData = result.ClothData;
+            }
+
             if (result.Skeleton is not null)
             {
                 _skeleton = result.Skeleton;
-                _cloth = result.Cloth;
                 RebuildSliderGroups();
             }
 
@@ -233,9 +240,10 @@ public partial class MainWindow : Window
 
     private LoadResult LoadFiles(
         IReadOnlyList<string> paths,
-        IReadOnlyDictionary<string, Pso2ColorMapping>? bodyColorMappings)
+        IReadOnlyDictionary<string, Pso2ColorMapping>? bodyColorMappings,
+        AqnSkeleton? existingSkeleton,
+        byte[]? existingClothData)
     {
-        AqnSkeleton? skeleton = null;
         ProportionResult? proportions = null;
         CharacterColorPalette? colors = null;
         CharacterSurfaceSettings? surface = null;
@@ -245,10 +253,15 @@ public partial class MainWindow : Window
         var archiveDdsCount = 0;
         var explicitAqm = paths.FirstOrDefault(path => Extension(path) == ".aqm");
 
+        // Every model is posed on one skeleton: the one already shown, merged
+        // with each loaded model's own AQN (see AqnSkeleton.Merge).
+        var merged = existingSkeleton;
+        var skeletonChanged = false;
+
         var aqnPath = paths.FirstOrDefault(path => Extension(path) == ".aqn");
         if (aqnPath is not null)
         {
-            skeleton = AqnSkeleton.Load(aqnPath);
+            Adopt(AqnSkeleton.Load(aqnPath));
         }
 
         var models = new List<RenderModel>();
@@ -259,8 +272,10 @@ public partial class MainWindow : Window
                 ? configuredMapping
                 : (Pso2ColorMapping?)null;
             var archive = ModelArchiveLoader.Load(path, mapping);
-            models.AddRange(archive.Models);
-            skeleton ??= archive.Skeleton;
+            var map = archive.Skeleton is null ? null : Adopt(archive.Skeleton);
+            models.AddRange(map is null
+                ? archive.Models
+                : archive.Models.Select(model => model.WithRemappedBones(map)));
             clothData ??= archive.ClothData;
             shapeAdjust ??= archive.ShapeAdjustData is { } shapeBytes
                 ? ShapeAdjustFile.Load(shapeBytes)
@@ -271,20 +286,19 @@ public partial class MainWindow : Window
 
         foreach (var path in paths.Where(path => Extension(path) == ".aqp"))
         {
-            if (skeleton is null)
+            var adjacentAqn = Path.ChangeExtension(path, ".aqn");
+            int[]? map = null;
+            if (File.Exists(adjacentAqn))
             {
-                var adjacentAqn = Path.ChangeExtension(path, ".aqn");
-                if (File.Exists(adjacentAqn))
-                {
-                    skeleton = AqnSkeleton.Load(adjacentAqn);
-                }
-                else if (_skeleton is null)
-                {
-                    throw new FileNotFoundException(L(AppText.AqnMissing), adjacentAqn);
-                }
+                map = Adopt(AqnSkeleton.Load(adjacentAqn));
+            }
+            else if (merged is null)
+            {
+                throw new FileNotFoundException(L(AppText.AqnMissing), adjacentAqn);
             }
 
-            models.Add(AqpLoader.Load(path));
+            var model = AqpLoader.Load(path);
+            models.Add(map is null ? model : model.WithRemappedBones(map));
             var adjacentCloth = Path.ChangeExtension(path, ".fltd");
             if (clothData is null && File.Exists(adjacentCloth))
             {
@@ -315,13 +329,16 @@ public partial class MainWindow : Window
             shapeAdjust = ShapeAdjustFile.Load(explicitAqm);
         }
 
+        // The newest FLTD drives the cloth, as before. A skeleton that grew
+        // rebuilds the shown one on it: the simulation is index based.
+        var clothSource = clothData ?? (skeletonChanged ? existingClothData : null);
         string? clothProblem = null;
-        var cloth = skeleton is not null && clothData is not null
-            ? ClothSimulation.TryCreate(clothData, skeleton, out clothProblem)
+        var cloth = merged is not null && clothSource is not null
+            ? ClothSimulation.TryCreate(clothSource, merged, out clothProblem)
             : null;
 
         return new LoadResult(
-            skeleton,
+            skeletonChanged ? merged : null,
             models,
             proportions,
             colors,
@@ -330,7 +347,23 @@ public partial class MainWindow : Window
             archiveEntryCount,
             archiveDdsCount,
             cloth,
-            clothProblem);
+            clothProblem,
+            clothSource);
+
+        int[] Adopt(AqnSkeleton loaded)
+        {
+            if (merged is null)
+            {
+                merged = loaded;
+                skeletonChanged = true;
+                return Enumerable.Range(0, loaded.Bones.Count).ToArray();
+            }
+
+            var grown = merged.Merge(loaded, out var map);
+            skeletonChanged |= !ReferenceEquals(grown, merged);
+            merged = grown;
+            return map;
+        }
     }
 
     private void ModelVisibilityChanged(object? sender, EventArgs e) => RefreshViewportModels();

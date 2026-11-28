@@ -108,6 +108,91 @@ public sealed class AqnSkeleton
         return new AqnSkeleton(sourceName, bones, node.nodoList.Count);
     }
 
+    /// <summary>
+    /// This skeleton plus the bones of <paramref name="other"/> it lacks, so
+    /// models rigged to either AQN can be posed together. <paramref name="map"/>
+    /// takes an <paramref name="other"/> bone index to its merged index.
+    /// </summary>
+    /// <remarks>
+    /// A model's bone palette holds node ids of its OWN AQN. An outerwear's
+    /// AQN orders (and sometimes places) the body bones differently from the
+    /// basewear's, so one model's palette read against the other skeleton
+    /// sends arms, hands and feet to unrelated bones. A bone with the same
+    /// name and bind maps onto the existing one. Same name but another bind
+    /// becomes a child of that bone holding the offset, so the model still
+    /// skins against its own bind and follows the body bone's pose. Bones
+    /// missing here (an outer's own cloth chains) are appended under their
+    /// mapped parent. Existing indices never move.
+    /// </remarks>
+    public AqnSkeleton Merge(AqnSkeleton other, out int[] map)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        const float bindTolerance = 1e-4f;
+        var bones = Bones.ToList();
+        var byName = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var bone in Bones)
+        {
+            byName.TryAdd(bone.Name, bone.Index);
+        }
+
+        map = Enumerable.Repeat(-1, other.Bones.Count).ToArray();
+        var pending = new Queue<SkeletonBone>(other.Bones);
+        var stalls = 0;
+        while (pending.Count > 0)
+        {
+            var bone = pending.Dequeue();
+            if (bone.ParentIndex >= 0 && map[bone.ParentIndex] < 0)
+            {
+                // Parents first: the pose is built in index order.
+                if (++stalls > pending.Count + 1)
+                {
+                    throw new InvalidDataException($"AQN hierarchy of '{other.SourcePath}' has a cycle.");
+                }
+
+                pending.Enqueue(bone);
+                continue;
+            }
+
+            stalls = 0;
+            if (byName.TryGetValue(bone.Name, out var same))
+            {
+                if (MatrixMaximumDifference(bones[same].InverseBind, bone.InverseBind) < bindTolerance)
+                {
+                    map[bone.Index] = same;
+                    continue;
+                }
+
+                // Offset child; flags 0 = inherits everything the body bone gets.
+                map[bone.Index] = Append(
+                    $"{bone.Name}@{Path.GetFileNameWithoutExtension(other.SourcePath)}", same, 0, bone);
+                continue;
+            }
+
+            var parent = bone.ParentIndex >= 0 ? map[bone.ParentIndex] : -1;
+            map[bone.Index] = Append(bone.Name, parent, bone.BoneFlags, bone);
+            byName.TryAdd(bone.Name, map[bone.Index]);
+        }
+
+        return bones.Count == Bones.Count ? this : new AqnSkeleton(SourcePath, bones, AuxiliaryNodeCount);
+
+        int Append(string name, int parent, ushort flags, SkeletonBone source)
+        {
+            var index = bones.Count;
+            var local = parent >= 0
+                ? MultiplyUsingDouble(source.WorldBind, bones[parent].InverseBind)
+                : source.WorldBind;
+            bones.Add(source with
+            {
+                Index = index,
+                Name = name,
+                ParentIndex = parent,
+                BoneFlags = flags,
+                LocalFromBind = local,
+            });
+            return index;
+        }
+    }
+
     public TrsValidationResult ValidateSourceTrs(float tolerance = 1e-4f)
     {
         var failures = new List<TrsValidationFailure>();
